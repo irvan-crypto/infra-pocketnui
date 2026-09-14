@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -257,6 +257,7 @@ function ShipMarker({ shipment }: { shipment: Shipment }) {
 }
 
 function ShipmentRoute({ shipment }: { shipment: Shipment }) {
+  const lineRef = useRef<L.Polyline>(null);
   const positions = useMemo<[number, number][]>(() => {
     // Prioritas 1: jalur laut (menyusuri selat/laut, tidak menembus daratan)
     const seaRoute = getSeaRoute(shipment.pelabuhan_asal, shipment.tujuan_pp);
@@ -274,8 +275,19 @@ function ShipmentRoute({ shipment }: { shipment: Shipment }) {
 
   if (positions.length < 2) return null;
 
+  // Leaflet hanya memasang `options.className` sekali di SVG._initPath().
+  // Re-apply class setelah mount & setiap positions berubah, agar animasi
+  // CSS `.route-line` tetap aktif meski renderer me-recreate elemen <path>.
+  useEffect(() => {
+    const el = lineRef.current?.getElement();
+    if (el) {
+      el.classList.add("route-line");
+    }
+  }, [positions]);
+
   return (
     <Polyline
+      ref={lineRef}
       positions={positions}
       pathOptions={{
         color: "#c084fc",
