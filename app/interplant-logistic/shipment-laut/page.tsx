@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PORTS, PLANTS } from "@/lib/coordinates";
 import { SHIP_STATUS_ORDER, SHIP_STATUS_LABELS } from "@/lib/app-config";
 import { formatDateIndonesian } from "@/lib/utils";
-import { FileText, Plus, Edit3, Trash2, Loader2, Send, Download, X } from "lucide-react";
+import { FileText, Plus, Edit3, Trash2, Loader2, Send, Download, X, Factory, Search } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 import * as XLSX from "xlsx";
 
@@ -79,6 +79,10 @@ export default function InterplantLogisticShipmentLautPage() {
   const [uploadMessage, setUploadMessage] = useState("");
   const [activeHistoryField, setActiveHistoryField] = useState<HistoryFieldName | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [selectedPlant, setSelectedPlant] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [tableSearch, setTableSearch] = useState("");
 
   useEffect(() => {
     if (!user) {
@@ -242,7 +246,6 @@ export default function InterplantLogisticShipmentLautPage() {
       }
     }
   };
-
 
   const shipmentUploadHeaders = [
     "nama_kapal",
@@ -463,24 +466,88 @@ export default function InterplantLogisticShipmentLautPage() {
   const canEdit = user?.role === "admin" || user?.role === "operator";
   const canDelete = user?.role === "admin";
 
-  // Per-plant supply totals (card stat)
-  const plantTotals = useMemo(() => {
-    const map = new Map<string, number>();
-    PLANTS.forEach((p) => map.set(p.name, 0));
+  // Normalisasi nama plant agar pencocokan toleran terhadap spasi/kapital
+  const normalizePlantName = (name: string | null | undefined) =>
+    (name || "").trim().replace(/\s+/g, " ").toLowerCase();
+
+  // Tahun yang ada di data
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
     shipments.forEach((s) => {
-      const cur = map.get(s.tujuan_pp) ?? 0;
-      map.set(s.tujuan_pp, cur + s.muatan_ton);
+      const dateFields = [s.ta_tiba, s.sandar, s.muat, s.selesai_muat, s.td_pelabuhan, s.ta_pp];
+      dateFields.forEach((d) => {
+        if (!d) return;
+        const date = new Date(d);
+        if (!Number.isNaN(date.getTime())) years.add(date.getFullYear());
+      });
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [shipments]);
+
+  // Filter by selected plant dan tahun (toleran terhadap beda spasi/kapital)
+  const filteredShipments = useMemo(() => {
+    let result = shipments;
+
+    // Filter tahun: pakai tanggal aktivitas terbaru tiap shipment
+    const latestActivityYear = (s: Shipment): number | null => {
+      const dateFields = [s.ta_tiba, s.sandar, s.muat, s.selesai_muat, s.td_pelabuhan, s.ta_pp];
+      let latest: Date | null = null;
+      dateFields.forEach((d) => {
+        if (!d) return;
+        const date = new Date(d);
+        if (!Number.isNaN(date.getTime()) && (!latest || date > latest)) latest = date;
+      });
+      return latest ? latest.getFullYear() : null;
+    };
+
+    result = result.filter((s) => {
+      const y = latestActivityYear(s);
+      // Jika shipment tidak punya tanggal sama sekali, tetap tampil pada tahun berjalan
+      if (y === null) return selectedYear === new Date().getFullYear();
+      return y === selectedYear;
+    });
+
+    if (selectedPlant) {
+      const selected = normalizePlantName(selectedPlant);
+      result = result.filter((s) => normalizePlantName(s.tujuan_pp) === selected);
+    }
+
+    return result;
+  }, [shipments, selectedPlant, selectedYear]);
+
+  // Per-plant supply totals (mengikuti filter)
+  const plantTotals = useMemo(() => {
+    const map = new Map<string, { ton: number; count: number }>();
+    const plantsToShow = selectedPlant
+      ? PLANTS.filter((p) => normalizePlantName(p.name) === normalizePlantName(selectedPlant))
+      : PLANTS;
+    plantsToShow.forEach((p) => map.set(p.name, { ton: 0, count: 0 }));
+
+    filteredShipments.forEach((s) => {
+      const key = PLANTS.find((p) => normalizePlantName(p.name) === normalizePlantName(s.tujuan_pp))?.name || s.tujuan_pp;
+      const cur = map.get(key) || { ton: 0, count: 0 };
+      cur.ton += s.muatan_ton || 0;
+      cur.count += 1;
+      map.set(key, cur);
     });
     return map;
-  }, [shipments]);
+  }, [filteredShipments, selectedPlant]);
+
+  // Statistik ringkasan (mengikuti filter)
+  const summaryStats = useMemo(() => {
+    const totalTon = filteredShipments.reduce((sum, s) => sum + (s.muatan_ton || 0), 0);
+    const totalBiaya = filteredShipments.reduce((sum, s) => sum + (s.total_biaya == null ? (s.muatan_ton || 0) * (s.tarif || 0) : s.total_biaya), 0);
+    const uniqueKapal = new Set(filteredShipments.map((s) => s.nama_kapal)).size;
+    return { totalTon, totalBiaya, uniqueKapal, count: filteredShipments.length };
+  }, [filteredShipments]);
 
   // Compute total_biaya if not set (muatan_ton * tarif)
   const enrichedShipments = useMemo(() => {
-    return shipments.map((s) => ({
+    return filteredShipments.map((s) => ({
       ...s,
       total_biaya: s.total_biaya == null ? s.muatan_ton * (s.tarif || 0) : s.total_biaya,
     }));
-  }, [shipments]);
+  }, [filteredShipments]);
 
   // Auto-calculate total_biaya when muatan_ton or tarif changes
   useEffect(() => {
@@ -488,6 +555,12 @@ export default function InterplantLogisticShipmentLautPage() {
     const tarif = formData.tarif === "" ? 0 : Number(formData.tarif ?? 0);
     setFormData(prev => ({ ...prev, total_biaya: muatan_ton * tarif }));
   }, [formData.muatan_ton, formData.tarif]);
+
+  const formatNumber = (value: number | null | undefined) =>
+    Number(value || 0).toLocaleString("id-ID", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
   // Kolom tabel (16 kolom)
   const columns = useMemo(() => [
@@ -559,7 +632,7 @@ export default function InterplantLogisticShipmentLautPage() {
         );
       }
     },
-  ], []);
+  ], [canEdit, canDelete]);
 
   if (loading) {
     return (
@@ -583,330 +656,321 @@ export default function InterplantLogisticShipmentLautPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-full mx-auto">
-      {/* Card Grid — one per Packing Plant */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
-        {PLANTS.map((plant) => (
-          <div key={plant.name} className="p-4 sm:p-5 lg:p-6 bg-white rounded-xl shadow-soft border border-gray-100">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2 sm:gap-3 lg:gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-50 text-blue-600">
-                <FileText className="lucide lucide-file-text sm:w-[22px] sm:h-[22px]" />
-              </div>
-              <div className="min-w-0 sm:flex-1">
-                <p className="text-xs sm:text-sm font-medium sm:truncate text-gray-500">{plant.name}</p>
-                <p className="text-2xl sm:text-3xl font-bold mt-0.5 tracking-tight leading-none text-gray-900">
-                  {(plantTotals.get(plant.name) ?? 0).toLocaleString("id-ID")}
-                </p>
-                <p className="text-[11px] sm:text-xs mt-1 flex items-center justify-center sm:justify-start gap-1 sm:truncate text-gray-400">
-                  Ton
-                </p>
-              </div>
+    <div className="p-4 md:p-6 max-w-full mx-auto space-y-6">
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Shipment Laut</h1>
+          <p className="text-sm text-gray-500 mt-1">Manajemen kapal & shipment laut antar packing plant</p>
+        </div>
+        {canEdit && (
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Filter Tahun */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="year-filter-il" className="sr-only">Tahun</label>
+              <select
+                id="year-filter-il"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="h-10 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+              >
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+                {availableYears.length === 0 && <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>}
+              </select>
             </div>
+            <button onClick={() => setShowUploadModal(true)} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors whitespace-nowrap">
+              <Download size={16} /> Upload File
+            </button>
+            <button onClick={triggerAdd} className="btn-glow flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors whitespace-nowrap">
+              <Plus size={16} /> Tambah Data
+            </button>
           </div>
+        )}
+      </div>
+
+      {/* ── Stat Cards ── */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="card p-4 flex items-center gap-3 border-l-4 border-l-blue-500 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 text-blue-600">
+            <FileText size={20} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-500 font-medium truncate">Total Muatan</p>
+            <p className="text-lg font-bold text-gray-900 truncate tabular-nums">{formatNumber(summaryStats.totalTon)} <span className="text-xs font-medium text-gray-400">ton</span></p>
+          </div>
+        </div>
+        <div className="card p-4 flex items-center gap-3 border-l-4 border-l-emerald-500 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 text-emerald-600">
+            <FileText size={20} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-500 font-medium truncate">Total Biaya</p>
+            <p className="text-lg font-bold text-gray-900 truncate tabular-nums">Rp {summaryStats.totalBiaya.toLocaleString("id-ID")}</p>
+          </div>
+        </div>
+        <div className="card p-4 flex items-center gap-3 border-l-4 border-l-amber-500 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 text-amber-600">
+            <FileText size={20} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-500 font-medium truncate">Jumlah Kapal & Pengiriman</p>
+            <p className="text-lg font-bold text-gray-900 truncate tabular-nums">{summaryStats.uniqueKapal} <span className="text-xs font-medium text-gray-400">kapal</span> · {summaryStats.count} <span className="text-xs font-medium text-gray-400">trip</span></p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Filter Plant (Button Group) ── */}
+      <div className={`grid md:flex rounded-xl overflow-hidden border border-gray-200 divide-x divide-y md:divide-y-0 divide-gray-200 [&>*:nth-child(n+4)]:border-t [&>*:nth-child(n+4)]:border-gray-200 md:[&>*:nth-child(n+4)]:border-t-0 ${
+        PLANTS.length === 1 ? "grid-cols-1" : PLANTS.length === 2 ? "grid-cols-2" : "grid-cols-3"
+      }`}>
+        <button
+          type="button"
+          onClick={() => setSelectedPlant(null)}
+          className={`flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 px-2 md:px-3.5 py-2 text-[11px] md:text-xs font-medium transition-all duration-200 ${
+            selectedPlant === null
+              ? "bg-blue-600 text-white"
+              : "bg-white text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5 shrink-0 opacity-60" strokeWidth={1.5} />
+          <span className="truncate">Semua</span>
+        </button>
+        {PLANTS.map((plant) => (
+          <button
+            key={plant.id}
+            type="button"
+            onClick={() => setSelectedPlant(plant.name)}
+            className={`flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 px-2 md:px-3.5 py-2 text-[11px] md:text-xs font-medium transition-all duration-200 ${
+              selectedPlant === plant.name
+                ? "bg-blue-600 text-white"
+                : "bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <Factory className="w-3.5 h-3.5 shrink-0 opacity-60" strokeWidth={1.5} />
+            <span className="truncate">{plant.name}</span>
+          </button>
         ))}
       </div>
 
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Manajemen Kapal Laut</h1>
+      {/* ── Rekapitulasi per Packing Plant ── */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="text-base font-semibold text-gray-900">Rekapitulasi per Packing Plant</h3>
+          <p className="text-xs text-gray-500">
+            Total muatan &amp; pengiriman
+            {selectedPlant ? (
+              <span className="ml-1 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                {selectedPlant}
+              </span>
+            ) : (
+              " — semua plant"
+            )}
+            {" · "}
+            <span className="font-medium">{selectedYear}</span>
+          </p>
+        </div>
+        <div className="card-body p-0 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Packing Plant</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">Total Muatan (ton)</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">Jumlah Trip</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from(plantTotals.entries()).map(([plant, stats]) => (
+                <tr
+                  key={plant}
+                  className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Factory className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-gray-900">{plant}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-900 tabular-nums">{formatNumber(stats.ton)}</td>
+                  <td className="px-4 py-3 text-right text-gray-600 tabular-nums">{stats.count}</td>
+                </tr>
+              ))}
+              {plantTotals.size === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-400">Belum ada data.</td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="bg-gray-50 border-t-2 border-gray-200">
+                <td className="px-4 py-3 font-bold text-gray-800">Total</td>
+                <td className="px-4 py-3 text-right font-bold text-gray-800 tabular-nums">{formatNumber(summaryStats.totalTon)}</td>
+                <td className="px-4 py-3 text-right font-bold text-gray-800 tabular-nums">{summaryStats.count}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
 
-      {/* Form Popup */}
+      {/* ── Tabel Detail Shipment ── */}
+      <div className="card">
+        <div className="card-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-gray-900">Detail Shipment</h3>
+            <p className="text-xs text-gray-500">Data lengkap setiap pengiriman kapal</p>
+          </div>
+          <div className="relative w-full sm:w-72 shrink-0">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={tableSearch}
+              onChange={(e) => setTableSearch(e.target.value)}
+              placeholder="Cari kapal, vendor, pelabuhan, PP..."
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-9 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+            {tableSearch && (
+              <button
+                type="button"
+                onClick={() => setTableSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                title="Hapus pencarian"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="card-body p-0">
+          <DataTable
+            columns={columns}
+            data={enrichedShipments}
+            searchValue={tableSearch}
+            hideHeader
+            getRowClass={getRowClass}
+          />
+        </div>
+      </div>
+
+      {/* ── Form Popup ── */}
       {canEdit && showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-4 p-4 md:p-6 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-800">
-                {isEditing ? "Edit Kapal" : "Tambah Kapal Baru"}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-                title="Tutup"
-              >
-                <X size={20} />
-              </button>
+              <h2 className="text-lg font-semibold text-gray-800">{isEditing ? "Edit Kapal" : "Tambah Kapal Baru"}</h2>
+              <button type="button" onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 transition-colors" title="Tutup"><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 md:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kapal</label>
-                  <input
-                    type="text"
-                    name="nama_kapal"
-                    value={formData.nama_kapal || ""}
-                    onChange={handleChange}
-                    onFocus={() => setActiveHistoryField("nama_kapal")}
-                    onBlur={() => setTimeout(() => setActiveHistoryField(null), 150)}
-                    autoComplete="off"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
+                  <input type="text" name="nama_kapal" value={formData.nama_kapal || ""} onChange={handleChange} onFocus={() => setActiveHistoryField("nama_kapal")} onBlur={() => setTimeout(() => setActiveHistoryField(null), 150)} autoComplete="off" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
                   {renderHistorySuggestions("nama_kapal")}
                 </div>
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
-                  <input
-                    type="text"
-                    name="nama_vendor"
-                    value={formData.nama_vendor || ""}
-                    onChange={handleChange}
-                    onFocus={() => setActiveHistoryField("nama_vendor")}
-                    onBlur={() => setTimeout(() => setActiveHistoryField(null), 150)}
-                    autoComplete="off"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <input type="text" name="nama_vendor" value={formData.nama_vendor || ""} onChange={handleChange} onFocus={() => setActiveHistoryField("nama_vendor")} onBlur={() => setTimeout(() => setActiveHistoryField(null), 150)} autoComplete="off" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   {renderHistorySuggestions("nama_vendor")}
                 </div>
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Muatan</label>
-                  <input
-                    type="text"
-                    name="type_muatan"
-                    value={formData.type_muatan || ""}
-                    onChange={handleChange}
-                    onFocus={() => setActiveHistoryField("type_muatan")}
-                    onBlur={() => setTimeout(() => setActiveHistoryField(null), 150)}
-                    autoComplete="off"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <input type="text" name="type_muatan" value={formData.type_muatan || ""} onChange={handleChange} onFocus={() => setActiveHistoryField("type_muatan")} onBlur={() => setTimeout(() => setActiveHistoryField(null), 150)} autoComplete="off" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   {renderHistorySuggestions("type_muatan")}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Muatan (ton)</label>
-                  <input
-                    type="number"
-                    name="muatan_ton"
-                    step="0.01"
-                    value={formData.muatan_ton ?? ""}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <input type="number" name="muatan_ton" step="0.01" value={formData.muatan_ton ?? ""} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Pelabuhan Asal</label>
-                  <select
-                    name="pelabuhan_asal"
-                    value={formData.pelabuhan_asal || ""}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  >
+                  <select name="pelabuhan_asal" value={formData.pelabuhan_asal || ""} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
                     <option value="">Pilih Pelabuhan</option>
-                    {PORTS.map((p) => (
-                      <option key={p.name} value={p.name}>{p.name}</option>
-                    ))}
+                    {PORTS.map((p) => (<option key={p.name} value={p.name}>{p.name}</option>))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tujuan PP</label>
-                  <select
-                    name="tujuan_pp"
-                    value={formData.tujuan_pp || ""}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  >
+                  <select name="tujuan_pp" value={formData.tujuan_pp || ""} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
                     <option value="">Pilih Packing Plant</option>
-                    {PLANTS.map((p) => (
-                      <option key={p.name} value={p.name}>{p.name}</option>
-                    ))}
+                    {PLANTS.map((p) => (<option key={p.name} value={p.name}>{p.name}</option>))}
                   </select>
                 </div>
-                {/* Status Fields */}
                 {SHIP_STATUS_ORDER.map((sk) => (
                   <div key={sk}>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{SHIP_STATUS_LABELS[sk]}</label>
-                    <input
-                      type="datetime-local"
-                      name={sk}
-                      value={formData[sk] || ""}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
+                    <input type="datetime-local" name={sk} value={formData[sk] || ""} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 ))}
-                {/* New fields */}
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
-                  <textarea
-                    name="keterangan"
-                    value={formData.keterangan || ""}
-                    onChange={handleChange}
-                    onFocus={() => setActiveHistoryField("keterangan")}
-                    onBlur={() => setTimeout(() => setActiveHistoryField(null), 150)}
-                    rows={2}
-                    autoComplete="off"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <textarea name="keterangan" value={formData.keterangan || ""} onChange={handleChange} onFocus={() => setActiveHistoryField("keterangan")} onBlur={() => setTimeout(() => setActiveHistoryField(null), 150)} rows={2} autoComplete="off" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   {renderHistorySuggestions("keterangan")}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipe Tarif</label>
-                  <input
-                    type="text"
-                    name="type_tarif"
-                    value={formData.type_tarif || "FREIGHT BASIC"}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <input type="text" name="type_tarif" value={formData.type_tarif || "FREIGHT BASIC"} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tarif</label>
-                  <input
-                    type="number"
-                    name="tarif"
-                    step="0.01"
-                    value={formData.tarif ?? ""}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <input type="number" name="tarif" step="0.01" value={formData.tarif ?? ""} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Total Biaya (otomatis)</label>
-                  <input
-                    type="number"
-                    name="total_biaya"
-                    step="0.01"
-                    value={formData.total_biaya || 0}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                    readOnly
-                  />
+                  <input type="number" name="total_biaya" step="0.01" value={formData.total_biaya || 0} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" readOnly />
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-                >
-                  {isEditing ? "Update" : "Simpan"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetForm();
-                    setShowForm(false);
-                  }}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-                >
-                  Batal
-                </button>
+                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">{isEditing ? "Update" : "Simpan"}</button>
+                <button type="button" onClick={() => { resetForm(); setShowForm(false); }} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Batal</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Table using DataTable component */}
-      <DataTable
-        title="Manajemen Kapal Laut"
-        columns={columns}
-        data={enrichedShipments}
-        searchable
-        searchPlaceholder="Cari kapal, vendor, pelabuhan, PP..."
-        getRowClass={getRowClass}
-        actions={
-          canEdit && (
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
-              >
-                <Download size={16} /> Upload File
-              </button>
-              <button
-                onClick={triggerAdd}
-                className="btn-glow flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
-              >
-                <Plus size={16} /> Tambah Data
-              </button>
-            </div>
-          )
-        }
-      />
-
-      {/* Popup Konfirmasi Tambah */}
+      {/* ── Add confirmation ── */}
       {showAddConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Konfirmasi</h3>
             <p className="text-sm text-gray-600 mb-5">Apakah anda ingin menambahkan data?</p>
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowAddConfirm(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-              >
-                Tidak
-              </button>
-              <button
-                onClick={confirmAdd}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-              >
-                Ya
-              </button>
+              <button onClick={() => setShowAddConfirm(false)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Tidak</button>
+              <button onClick={confirmAdd} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">Ya</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Popup Konfirmasi Edit */}
+      {/* ── Edit confirmation ── */}
       {showEditConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Konfirmasi</h3>
             <p className="text-sm text-gray-600 mb-5">Apakah anda ingin mengedit data ini?</p>
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowEditConfirm(false);
-                  setPendingEditShipment(null);
-                }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-              >
-                Tidak
-              </button>
-              <button
-                onClick={confirmEdit}
-                className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition"
-              >
-                Ya
-              </button>
+              <button onClick={() => { setShowEditConfirm(false); setPendingEditShipment(null); }} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Tidak</button>
+              <button onClick={confirmEdit} className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition">Ya</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Popup Konfirmasi Delete */}
+      {/* ── Delete confirmation ── */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Konfirmasi</h3>
             <p className="text-sm text-gray-600 mb-5">Apakah anda ingin menghapus data ini?</p>
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setPendingDeleteId(null);
-                }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-              >
-                Tidak
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 transition"
-              >
-                Ya
-              </button>
+              <button onClick={() => { setShowDeleteConfirm(false); setPendingDeleteId(null); }} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">Tidak</button>
+              <button onClick={confirmDelete} className="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 transition">Ya</button>
             </div>
           </div>
         </div>
       )}
 
-
-      {/* Upload file modal */}
+      {/* ── Upload file modal ── */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
@@ -915,53 +979,20 @@ export default function InterplantLogisticShipmentLautPage() {
                 <h3 className="text-lg font-bold text-gray-900">Apakah anda sudah punya templatenya?</h3>
                 <p className="mt-1 text-sm text-gray-600">Gunakan template Excel agar format kolom sesuai dengan sistem.</p>
               </div>
-              <button onClick={() => setShowUploadModal(false)} className="rounded-lg p-1 text-gray-500 hover:bg-gray-100">
-                <X size={20} />
-              </button>
+              <button onClick={() => setShowUploadModal(false)} className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"><X size={20} /></button>
             </div>
-
             {uploadMessage && (
-              <div className={`mb-4 rounded-lg border px-3 py-2 text-sm ${uploadStatus === "error" ? "border-red-200 bg-red-50 text-red-700" : uploadStatus === "success" ? "border-green-200 bg-green-50 text-green-700" : "border-blue-200 bg-blue-50 text-blue-700"}`}>
-                {uploadMessage}
-              </div>
+              <div className={`mb-4 rounded-lg border px-3 py-2 text-sm ${uploadStatus === "error" ? "border-red-200 bg-red-50 text-red-700" : uploadStatus === "success" ? "border-green-200 bg-green-50 text-green-700" : "border-blue-200 bg-blue-50 text-blue-700"}`}>{uploadMessage}</div>
             )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={processUploadedFile}
-            />
-
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={processUploadedFile} />
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                onClick={() => setShowUploadModal(false)}
-                disabled={uploadStatus === "uploading"}
-                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleUploadClick}
-                disabled={uploadStatus === "uploading"}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-              >
-                {uploadStatus === "uploading" ? "Mengupload..." : "Upload"}
-              </button>
-              <button
-                onClick={downloadTemplate}
-                disabled={uploadStatus === "uploading"}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-              >
-                Download Template
-              </button>
+              <button onClick={() => setShowUploadModal(false)} disabled={uploadStatus === "uploading"} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">Batal</button>
+              <button onClick={handleUploadClick} disabled={uploadStatus === "uploading"} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">{uploadStatus === "uploading" ? "Mengupload..." : "Upload"}</button>
+              <button onClick={downloadTemplate} disabled={uploadStatus === "uploading"} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">Download Template</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* WhatsApp modal placeholder if needed */}
     </div>
   );
 }

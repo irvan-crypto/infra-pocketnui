@@ -21,6 +21,10 @@ interface Props<T> {
   maxHeight?: string;
   getRowClass?: (item: T) => string;
   onSearchChange?: (value: string) => void;
+  /** Controlled search value. Jika diisi, pencarian dikendalikan dari luar (mis. di card-header). */
+  searchValue?: string;
+  /** Sembunyikan header internal DataTable (title + search + actions). */
+  hideHeader?: boolean;
 }
 
 const ROWS_OPTIONS = [10, 20, 30, 50, 100];
@@ -36,11 +40,15 @@ export default function DataTable<T>({
   maxHeight,
   getRowClass,
   onSearchChange,
+  searchValue,
+  hideHeader = false,
 }: Props<T>) {
-  const [search, setSearch] = useState("");
+  const [internalSearch, setInternalSearch] = useState("");
+  const isControlledSearch = searchValue !== undefined;
+  const search = isControlledSearch ? searchValue : internalSearch;
 
   const handleSearch = (val: string) => {
-    setSearch(val);
+    if (!isControlledSearch) setInternalSearch(val);
     onSearchChange?.(val);
   };
   const [page, setPage] = useState(1);
@@ -89,7 +97,7 @@ export default function DataTable<T>({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       {/* Header */}
-      {(title || searchable || actions) && (
+      {!hideHeader && (title || searchable || actions) && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
           <div className="flex-1">
             {title && (typeof title === "string" ? (
