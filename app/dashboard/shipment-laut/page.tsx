@@ -21,6 +21,10 @@ interface Shipment {
   selesai_muat: string | null;
   td_pelabuhan: string | null;
   ta_pp: string | null;
+  sandar_pp: string | null;
+  bongkar_pp: string | null;
+  selesai_pp: string | null;
+  td_pp: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -104,6 +108,10 @@ export default function ShipmentLautPage() {
             selesai_muat: "2026-09-09T16:45:00",
             td_pelabuhan: "2026-09-10T06:00:00",
             ta_pp: "2026-09-10T18:00:00",
+            sandar_pp: "2026-09-10T19:00:00",
+            bongkar_pp: "2026-09-11T06:00:00",
+            selesai_pp: "2026-09-11T14:00:00",
+            td_pp: "2026-09-12T06:00:00",
             created_at: "2026-09-08T08:00:00",
             updated_at: "2026-09-10T18:00:00",
           },
@@ -121,6 +129,10 @@ export default function ShipmentLautPage() {
             selesai_muat: "2026-09-08T14:00:00",
             td_pelabuhan: "2026-09-09T07:00:00",
             ta_pp: null,
+            sandar_pp: null,
+            bongkar_pp: null,
+            selesai_pp: null,
+            td_pp: null,
             created_at: "2026-09-07T06:30:00",
             updated_at: "2026-09-09T07:00:00",
           },
@@ -138,6 +150,10 @@ export default function ShipmentLautPage() {
             selesai_muat: "2026-09-07T15:30:00",
             td_pelabuhan: "2026-09-08T06:00:00",
             ta_pp: "2026-09-08T18:00:00",
+            sandar_pp: null,
+            bongkar_pp: null,
+            selesai_pp: null,
+            td_pp: null,
             created_at: "2026-09-06T10:00:00",
             updated_at: "2026-09-08T18:00:00",
           },

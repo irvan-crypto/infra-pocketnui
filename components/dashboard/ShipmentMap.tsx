@@ -47,7 +47,10 @@ function getPortOffset(id: string, baseLat: number, baseLng: number): [number, n
 // Custom ship icon with animation and optional label (nama kapal)
 const createShipIcon = (status: ShipStatusKey, isAnimating: boolean = false, label?: string) => {
   const color = status === "td_pelabuhan" ? "#8b5cf6" :
-                status === "ta_pp" ? "#10b981" :
+                status === "ta_pp" || status === "sandar_pp" ? "#10b981" :
+                status === "bongkar_pp" ? "#f97316" :
+                status === "selesai_pp" ? "#059669" :
+                status === "td_pp" ? "#6b7280" :
                 status === "ta_tiba" ? "#3b82f6" :
                 status === "sandar" ? "#f59e0b" :
                 status === "muat" ? "#f97316" : "#6b7280";
@@ -100,6 +103,10 @@ interface Shipment {
   selesai_muat: string | null;
   td_pelabuhan: string | null;
   ta_pp: string | null;
+  sandar_pp: string | null;
+  bongkar_pp: string | null;
+  selesai_pp: string | null;
+  td_pp: string | null;
 }
 
 interface ShipmentMapProps {
@@ -114,6 +121,10 @@ function getLatestStatus(shipment: Shipment): { status: ShipStatusKey; timestamp
     { key: "selesai_muat", value: shipment.selesai_muat },
     { key: "td_pelabuhan", value: shipment.td_pelabuhan },
     { key: "ta_pp", value: shipment.ta_pp },
+    { key: "sandar_pp", value: shipment.sandar_pp },
+    { key: "bongkar_pp", value: shipment.bongkar_pp },
+    { key: "selesai_pp", value: shipment.selesai_pp },
+    { key: "td_pp", value: shipment.td_pp },
   ];
 
   let latest: { key: ShipStatusKey; value: string | null } | null = null;
@@ -170,7 +181,7 @@ function getShipPosition(shipment: Shipment): { lat: number; lng: number } | nul
     return null;
   }
 
-  if (status === "ta_pp") {
+  if (status === "ta_pp" || status === "sandar_pp" || status === "bongkar_pp" || status === "selesai_pp" || status === "td_pp") {
     const destination = PLANTS.find(p => p.name === shipment.tujuan_pp);
     if (destination) {
       const [lat, lng] = getPortOffset(shipment.id, destination.lat, destination.lng);

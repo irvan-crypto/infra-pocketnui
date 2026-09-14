@@ -24,6 +24,11 @@ interface Shipment {
   selesai_muat: string | null;
   td_pelabuhan: string | null;
   ta_pp: string | null;
+  sandar_pp: string | null;
+  bongkar_pp: string | null;
+  selesai_pp: string | null;
+  td_pp: string | null;
+  draft_surveypp: number | null;
   keterangan: string | null;
   type_tarif: string | null;
   tarif: number | null;
@@ -32,10 +37,11 @@ interface Shipment {
   updated_at: string;
 }
 
-type ShipmentFormData = Partial<Omit<Shipment, "muatan_ton" | "tarif" | "total_biaya">> & {
+type ShipmentFormData = Partial<Omit<Shipment, "muatan_ton" | "tarif" | "total_biaya" | "draft_surveypp">> & {
   muatan_ton?: number | "";
   tarif?: number | "";
   total_biaya?: number | "";
+  draft_surveypp?: number | "";
 };
 
 type HistoryFieldName = "nama_kapal" | "nama_vendor" | "type_muatan" | "keterangan";
@@ -61,6 +67,11 @@ export default function InterplantLogisticShipmentLautPage() {
     selesai_muat: "",
     td_pelabuhan: "",
     ta_pp: "",
+    sandar_pp: "",
+    bongkar_pp: "",
+    selesai_pp: "",
+    td_pp: "",
+    draft_surveypp: "",
     keterangan: "",
     type_tarif: "",
     tarif: "",
@@ -147,6 +158,7 @@ export default function InterplantLogisticShipmentLautPage() {
       muatan_ton: formData.muatan_ton === "" ? 0 : Number(formData.muatan_ton ?? 0),
       tarif: formData.tarif === "" ? 0 : Number(formData.tarif ?? 0),
       total_biaya: formData.total_biaya === "" ? 0 : Number(formData.total_biaya ?? 0),
+      draft_surveypp: formData.draft_surveypp === "" ? null : Number(formData.draft_surveypp ?? null),
     };
     try {
       const res = await fetch("/api/shipments", {
@@ -183,6 +195,11 @@ export default function InterplantLogisticShipmentLautPage() {
       selesai_muat: shipment.selesai_muat ? new Date(shipment.selesai_muat).toISOString().slice(0, 16) : null,
       td_pelabuhan: shipment.td_pelabuhan ? new Date(shipment.td_pelabuhan).toISOString().slice(0, 16) : null,
       ta_pp: shipment.ta_pp ? new Date(shipment.ta_pp).toISOString().slice(0, 16) : null,
+      sandar_pp: shipment.sandar_pp ? new Date(shipment.sandar_pp).toISOString().slice(0, 16) : null,
+      bongkar_pp: shipment.bongkar_pp ? new Date(shipment.bongkar_pp).toISOString().slice(0, 16) : null,
+      selesai_pp: shipment.selesai_pp ? new Date(shipment.selesai_pp).toISOString().slice(0, 16) : null,
+      td_pp: shipment.td_pp ? new Date(shipment.td_pp).toISOString().slice(0, 16) : null,
+      draft_surveypp: shipment.draft_surveypp ?? "",
       keterangan: shipment.keterangan || "",
       type_tarif: shipment.type_tarif || "",
       tarif: shipment.tarif ?? "",
@@ -260,6 +277,11 @@ export default function InterplantLogisticShipmentLautPage() {
     "selesai_muat",
     "td_pelabuhan",
     "ta_pp",
+    "sandar_pp",
+    "bongkar_pp",
+    "selesai_pp",
+    "td_pp",
+    "draft_surveypp",
     "keterangan",
     "type_tarif",
     "tarif",
@@ -267,7 +289,7 @@ export default function InterplantLogisticShipmentLautPage() {
   ];
 
   const normalizeUploadRow = (row: Record<string, unknown>) => {
-    const timestampFields = ["ta_tiba", "sandar", "muat", "selesai_muat", "td_pelabuhan", "ta_pp"];
+    const timestampFields = ["ta_tiba", "sandar", "muat", "selesai_muat", "td_pelabuhan", "ta_pp", "sandar_pp", "bongkar_pp", "selesai_pp", "td_pp"];
     const getString = (key: string) => row[key] == null ? "" : String(row[key]).trim();
     const getNumber = (key: string) => {
       const raw = getString(key).replace(/,/g, ".");
@@ -316,6 +338,7 @@ export default function InterplantLogisticShipmentLautPage() {
       type_tarif: getString("type_tarif") || "FREIGHT BASIC",
       tarif: getNumber("tarif"),
       total_biaya: getString("total_biaya") ? getNumber("total_biaya") : getNumber("muatan_ton") * getNumber("tarif"),
+      draft_surveypp: getString("draft_surveypp") ? getNumber("draft_surveypp") : null,
     };
     timestampFields.forEach((key) => {
       payload[key] = normalizeDateTime(key);
@@ -337,8 +360,8 @@ export default function InterplantLogisticShipmentLautPage() {
   };
 
   const createShipmentDuplicateKey = (shipment: Partial<Shipment> | Record<string, string | number | null>) => {
-    const timestampFields = new Set(["ta_tiba", "sandar", "muat", "selesai_muat", "td_pelabuhan", "ta_pp"]);
-    const numberFields = new Set(["muatan_ton", "tarif", "total_biaya"]);
+    const timestampFields = new Set(["ta_tiba", "sandar", "muat", "selesai_muat", "td_pelabuhan", "ta_pp", "sandar_pp", "bongkar_pp", "selesai_pp", "td_pp"]);
+    const numberFields = new Set(["muatan_ton", "tarif", "total_biaya", "draft_surveypp"]);
     const normalizeValue = (key: string, value: unknown) => {
       if (value == null || value === "") return "";
 
@@ -432,6 +455,11 @@ export default function InterplantLogisticShipmentLautPage() {
       selesai_muat: null,
       td_pelabuhan: null,
       ta_pp: null,
+      sandar_pp: null,
+      bongkar_pp: null,
+      selesai_pp: null,
+      td_pp: null,
+      draft_surveypp: "",
       keterangan: "",
       type_tarif: "FREIGHT BASIC",
       tarif: "",
@@ -474,7 +502,7 @@ export default function InterplantLogisticShipmentLautPage() {
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     shipments.forEach((s) => {
-      const dateFields = [s.ta_tiba, s.sandar, s.muat, s.selesai_muat, s.td_pelabuhan, s.ta_pp];
+      const dateFields = [s.ta_tiba, s.sandar, s.muat, s.selesai_muat, s.td_pelabuhan, s.ta_pp, s.sandar_pp, s.bongkar_pp, s.selesai_pp, s.td_pp];
       dateFields.forEach((d) => {
         if (!d) return;
         const date = new Date(d);
@@ -490,7 +518,7 @@ export default function InterplantLogisticShipmentLautPage() {
 
     // Filter tahun: pakai tanggal aktivitas terbaru tiap shipment
     const latestActivityYear = (s: Shipment): number | null => {
-      const dateFields = [s.ta_tiba, s.sandar, s.muat, s.selesai_muat, s.td_pelabuhan, s.ta_pp];
+      const dateFields = [s.ta_tiba, s.sandar, s.muat, s.selesai_muat, s.td_pelabuhan, s.ta_pp, s.sandar_pp, s.bongkar_pp, s.selesai_pp, s.td_pp];
       let latest: Date | null = null;
       dateFields.forEach((d) => {
         if (!d) return;
@@ -588,6 +616,11 @@ export default function InterplantLogisticShipmentLautPage() {
     { key: "selesai_muat", header: "Selesai Muat", render: (s: Shipment) => <span className="text-xs">{s.selesai_muat ? formatDateIndonesian(s.selesai_muat) : "-"}</span> },
     { key: "td_pelabuhan", header: "TD Pelabuhan", render: (s: Shipment) => <span className="text-xs">{s.td_pelabuhan ? formatDateIndonesian(s.td_pelabuhan) : "-"}</span> },
     { key: "ta_pp", header: "TA PP", render: (s: Shipment) => <span className="text-xs">{s.ta_pp ? formatDateIndonesian(s.ta_pp) : "-"}</span> },
+    { key: "sandar_pp", header: "Sandar PP", render: (s: Shipment) => <span className="text-xs">{s.sandar_pp ? formatDateIndonesian(s.sandar_pp) : "-"}</span> },
+    { key: "bongkar_pp", header: "Bongkar PP", render: (s: Shipment) => <span className="text-xs">{s.bongkar_pp ? formatDateIndonesian(s.bongkar_pp) : "-"}</span> },
+    { key: "selesai_pp", header: "Selesai PP", render: (s: Shipment) => <span className="text-xs">{s.selesai_pp ? formatDateIndonesian(s.selesai_pp) : "-"}</span> },
+    { key: "td_pp", header: "TD PP", render: (s: Shipment) => <span className="text-xs">{s.td_pp ? formatDateIndonesian(s.td_pp) : "-"}</span> },
+    { key: "draft_surveypp", header: "Draft Survey PP", className: "text-right", render: (s: Shipment) => <span className="text-xs">{s.draft_surveypp != null ? Number(s.draft_surveypp).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}</span> },
     { key: "keterangan", header: "Keterangan", render: (s: Shipment) => <span className="max-w-xs truncate">{s.keterangan || "-"}</span> },
     { key: "type_tarif", header: "Tipe Tarif", render: (s: Shipment) => <span>{s.type_tarif || "-"}</span> },
     {
@@ -651,7 +684,7 @@ export default function InterplantLogisticShipmentLautPage() {
       }, null as { key: string; value: string | null } | null);
     if (latestStatus?.key === "muat") return "hover:bg-orange-50";
     if (latestStatus?.key === "selesai_muat") return "hover:bg-amber-50";
-    if (latestStatus?.key === "ta_pp") return "hover:bg-green-50";
+    if (latestStatus?.key === "ta_pp" || latestStatus?.key === "sandar_pp" || latestStatus?.key === "bongkar_pp" || latestStatus?.key === "selesai_pp" || latestStatus?.key === "td_pp") return "hover:bg-green-50";
     return "";
   };
 
@@ -901,6 +934,10 @@ export default function InterplantLogisticShipmentLautPage() {
                     <input type="datetime-local" name={sk} value={formData[sk] || ""} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 ))}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Draft Survey PP (ton)</label>
+                  <input type="number" name="draft_surveypp" step="0.01" value={formData.draft_surveypp ?? ""} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
                   <textarea name="keterangan" value={formData.keterangan || ""} onChange={handleChange} onFocus={() => setActiveHistoryField("keterangan")} onBlur={() => setTimeout(() => setActiveHistoryField(null), 150)} rows={2} autoComplete="off" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />

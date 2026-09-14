@@ -21,6 +21,10 @@ interface Shipment {
   selesai_muat: string | null;
   td_pelabuhan: string | null;
   ta_pp: string | null;
+  sandar_pp: string | null;
+  bongkar_pp: string | null;
+  selesai_pp: string | null;
+  td_pp: string | null;
 }
 
 type ShipmentField = keyof Omit<Shipment, "id" | "created_at" | "updated_at">;
