@@ -284,8 +284,8 @@ function ShipmentRoute({ shipment }: { shipment: Shipment }) {
         dashArray: "8 8",
         lineCap: "round",
         lineJoin: "round",
-        className: "route-line",
       }}
+      className="route-line"
     />
   );
 }
