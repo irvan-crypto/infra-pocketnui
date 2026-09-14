@@ -147,7 +147,10 @@ body {
 
 /* Garis utama: dash halus yang mengalir dari pelabuhan asal ke PP tujuan */
 @keyframes routeBaseFlow {
-  to {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
     stroke-dashoffset: -20;
   }
 }
