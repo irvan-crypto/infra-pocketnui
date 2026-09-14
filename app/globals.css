@@ -1,0 +1,226 @@
+@import "tailwindcss";
+
+:root {
+  --sidebar-width: 260px;
+}
+
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f9fafb;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+@layer components {
+  .card {
+    background-color: white;
+    border-radius: 0.75rem;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .card-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .card-body {
+    padding: 1.5rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+  }
+}
+
+/* ── Button Effects ── */
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(26, 86, 219, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(26, 86, 219, 0.55);
+  }
+}
+
+@keyframes shimmerMove {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Glow pulsing — nyala-mati lembut di belakang tombol */
+.btn-glow {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+/* Shimmer auto — kilau bergerak terus-menerus (untuk tombol utama) */
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerMove 2.5s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Shimmer hover-only — kilau muncul saat cursor di atas (untuk tombol toolbar) */
+.btn-shimmer-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer-hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.btn-shimmer-hover:hover::before {
+  opacity: 1;
+  animation: shimmerMove 1.5s ease-in-out infinite;
+}
+
+/* Scale on hover — tombol sedikit membesar */
+.btn-scale {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+
+.btn-scale:hover {
+  transform: scale(1.05);
+}
+
+/* ── Shipment Route (garis halus + glow mengalir dari asal → PP) ── */
+
+/* Garis utama: dash halus yang mengalir dari pelabuhan asal ke PP tujuan */
+@keyframes routeBaseFlow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.route-line {
+  stroke-dasharray: 8 8;
+  animation: routeBaseFlow 1.2s linear infinite;
+}
+
+/* ── Ship Marker + Label Nama Kapal ── */
+
+.ship-marker {
+  background: transparent;
+  border: none;
+}
+
+.ship-marker-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end; /* icon di bawah, area label di atas */
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+/* SVG otomatis center oleh align-items:center (lebar container = lebar wrapper Leaflet),
+   sehingga pusat icon tepat di titik anchor. Tidak perlu margin. */
+
+/* Label nama kapal: menempel di atas animasi lingkaran (anchor relatif ke pusat icon) */
+.ship-name-container {
+  position: absolute;
+  bottom: 42px; /* turun mendekati tepi atas ring animasi (ring pulse mencapai ~y=4 dari atas SVG) */
+  left: 50%;    /* mulai dari pusat icon */
+  margin-left: 4px; /* geser sedikit ke kanan agar di sisi kanan icon */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: 20; /* di atas SVG icon */
+}
+
+.ship-name-label {
+  background-color: var(--ship-color, #6b7280);
+  color: white;
+  font-size: 9px;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 12px;
+  white-space: nowrap;
+  padding: 2px 6px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  text-align: left;
+}
+
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}

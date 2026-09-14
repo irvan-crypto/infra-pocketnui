@@ -1,0 +1,39 @@
+{
+  "name": "shipmonitor-pocketnui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.0",
+    "date-fns": "^3.6.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.400.0",
+    "next": "^15.3.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-leaflet": "^5.0.0",
+    "tailwind-merge": "^2.3.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/google.maps": "^3.55.0",
+    "@types/leaflet": "^1.9.8",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.2",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5"
+  }
+}
