@@ -316,6 +316,22 @@ export default function ShipmentMap({ shipments }: ShipmentMapProps) {
 
   useEffect(() => {
     setIsClient(true);
+    
+    // Inject CSS animation untuk route-line (fallback jika className tidak ter-apply)
+    const styleId = 'route-line-animation';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        @keyframes routeBaseFlow {
+          to { stroke-dashoffset: -20; }
+        }
+        .leaflet-overlay-pane svg path.route-line {
+          animation: routeBaseFlow 1.2s linear infinite !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
   }, []);
 
   // Re-render tiap 60 detik agar posisi kapal bergerak mengikuti waktu nyata
