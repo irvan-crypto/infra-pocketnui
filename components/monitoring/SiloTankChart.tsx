@@ -220,11 +220,23 @@ export default function SiloTankChart({
   // Grup eksplisit sesuai prop groups
   const groupsMemo = useMemo(() => {
     const byNumber = new Map(silos.map((s) => [s.nomor, s]));
-    return groups.map((nums) => ({
-      key: nums[0],
-      name: groupNames[nums[0]] ?? `Silo ${nums.join(", ")}`,
-      items: nums.map((n) => byNumber.get(n)).filter((s): s is SiloTank => Boolean(s)),
-    })).filter((g) => g.items.length > 0);
+    return groups
+      .map((nums) => {
+        const items = nums
+          .map((n) => byNumber.get(n))
+          .filter((s): s is SiloTank => Boolean(s));
+        const totalStok = items.reduce((sum, s) => sum + s.stok, 0);
+        const totalKapasitas = items.reduce((sum, s) => sum + s.kapasitas, 0);
+        return {
+          key: nums[0],
+          name: groupNames[nums[0]] ?? `Silo ${nums.join(", ")}`,
+          items,
+          totalStok,
+          totalKapasitas,
+          pct: totalKapasitas > 0 ? Math.round((totalStok / totalKapasitas) * 100) : 0,
+        };
+      })
+      .filter((g) => g.items.length > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [silos, groups, groupNames]);
 
@@ -263,10 +275,18 @@ export default function SiloTankChart({
           groupsMemo.length > 1 ? "md:grid-cols-3" : ""
         } gap-4`}
       >
-        {groupsMemo.map(({ key, name, items }) => (
+        {groupsMemo.map(({ key, name, items, totalStok, totalKapasitas, pct }) => (
           <div key={key} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <p className="text-sm font-extrabold text-gray-800 uppercase tracking-wider mb-4 text-center">
+            <p className="text-sm font-extrabold text-gray-800 uppercase tracking-wider text-center">
               {name}
+            </p>
+            <p className="mb-4 text-center leading-tight">
+              <span className="text-xs font-bold text-gray-700 tabular-nums">
+                Total Stok: {formatMonitoringNumber(totalStok, true)} ton
+              </span>
+              <span className="block text-[10px] font-semibold text-gray-400 tabular-nums">
+                {pct}% dari kapasitas {formatMonitoringNumber(totalKapasitas, true)} ton
+              </span>
             </p>
             <div className="flex flex-wrap items-end justify-around gap-2">
               {items.map((s) => (

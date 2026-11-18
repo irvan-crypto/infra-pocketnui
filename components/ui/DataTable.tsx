@@ -66,6 +66,7 @@ export default function DataTable<T>({
     rowSpan?: number;
     hideOnMobile?: boolean;
     className?: string;
+    divider?: boolean;
   }[] = [];
 
   for (let i = 0; i < columns.length; i += 1) {
@@ -92,6 +93,7 @@ export default function DataTable<T>({
       label: col.group,
       colSpan: run.length,
       hideOnMobile: run.every((c) => c.hideOnMobile),
+      divider: i > 0, // garis pemisah antar grup
     });
 
     i = end;
@@ -178,6 +180,7 @@ export default function DataTable<T>({
                       className={`px-3 sm:px-4 lg:px-5 py-2 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap border-b border-gray-300
                         ${cell.colSpan && cell.colSpan > 1 ? "text-center" : "text-left"}
                         ${cell.hideOnMobile ? "hidden lg:table-cell" : ""}
+                        ${cell.divider ? "border-l-2 border-gray-400" : ""}
                         ${cell.className || ""}`}
                     >
                       {cell.label}
@@ -193,7 +196,7 @@ export default function DataTable<T>({
                       <th
                         key={col.key}
                         className={`px-3 sm:px-4 lg:px-5 py-2 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap
-                          ${runStart ? "border-l border-gray-300" : ""}
+                          ${runStart ? "border-l-2 border-gray-400" : ""}
                           ${col.hideOnMobile ? "hidden lg:table-cell" : ""}
                           ${col.className || ""}`}
                       >
