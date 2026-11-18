@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import ShipmentMap from "@/components/dashboard/ShipmentMap";
 import DataTable from "@/components/ui/DataTable";
 import { Maximize2, Minimize2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { SHIP_STATUS_ORDER, SHIP_STATUS_LABELS, type ShipStatusKey } from "@/lib/app-config";
 import { formatDateIndonesian } from "@/lib/utils";
 
@@ -66,8 +65,6 @@ export default function ShipmentLautPage() {
   const [loading, setLoading] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
-  const supabase = createClient();
-
   useEffect(() => {
     fetchShipments();
   }, []);
@@ -75,31 +72,14 @@ export default function ShipmentLautPage() {
   const fetchShipments = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("shipments")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        // Error PostgREST adalah plain object (bukan Error), jadi log manual
-        // agar code/message/details/hint terlihat di console (bukan {}).
-        console.error(
-          "Supabase error:",
-          JSON.stringify(
-            { code: error.code, message: error.message, details: error.details, hint: error.hint },
-            null,
-            2
-          )
-        );
-        throw error;
+      // Lewat API (sesi cookie) — bukan anon key, sehingga RLS bisa dikunci
+      const res = await fetch("/api/shipments", { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.message || "Gagal mengambil data shipment");
       }
 
-      const list = (data || []) as Shipment[];
-      if (list.length === 0) {
-        console.warn(
-          'Supabase mengembalikan 0 baris. Kemungkinan RLS memblokir akses anon key (jalankan supabase-fix-rls.sql).'
-        );
-      }
+      const list = (json.data || []) as Shipment[];
       setShipments(list);
     } catch (error) {
       console.error(

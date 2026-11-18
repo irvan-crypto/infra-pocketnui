@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireUser, requireWriter } from "@/lib/auth/guard";
+import { resolveUserScope, isMonitoringSlugInScope, isGlobalTableInScope } from "@/lib/units";
+import type { SessionUser } from "@/lib/auth/session";
 import {
   MONITORING_CONFIGS,
   type MonitoringTableConfig,
@@ -8,7 +11,8 @@ import {
 // ============================================================
 // API generik untuk semua tabel monitoring harian.
 // URL: /api/monitoring/<nama_tabel>
-// Nama tabel divalidasi terhadap whitelist di monitoring-config.
+// - GET  : semua role yang login
+// - POST/PUT/DELETE : operator hanya untuk tabel unitnya
 // ============================================================
 
 type Ctx = { params: Promise<{ table: string }> };
@@ -16,6 +20,22 @@ type Ctx = { params: Promise<{ table: string }> };
 function resolveConfig(table: string): MonitoringTableConfig | null {
   return MONITORING_CONFIGS.find((c) => c.table === table) ?? null;
 }
+
+/** Operator hanya boleh menulis tabel monitoring unitnya / tabel global unitnya */
+function canWriteTable(user: SessionUser, cfg: MonitoringTableConfig): boolean {
+  if (user.role !== "operator") return true;
+  const scope = resolveUserScope(user.role, user.akses, user.aksesPp);
+  return (
+    isMonitoringSlugInScope(scope, cfg.slug) ||
+    isGlobalTableInScope(scope, cfg.table)
+  );
+}
+
+const outOfScope = () =>
+  NextResponse.json(
+    { ok: false, message: "Tabel ini di luar unit kerja Anda." },
+    { status: 403 }
+  );
 
 /** Ambil hanya kolom yang boleh diisi (buang id, generated, timestamp) */
 function sanitizePayload(
@@ -40,6 +60,9 @@ function sanitizePayload(
 }
 
 export async function GET(_request: Request, ctx: Ctx) {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
+
   const { table } = await ctx.params;
   const cfg = resolveConfig(table);
   if (!cfg) {
@@ -47,7 +70,7 @@ export async function GET(_request: Request, ctx: Ctx) {
   }
 
   try {
-    const { data, error } = await createClient()
+    const { data, error } = await createAdminClient()
       .from(cfg.table)
       .select("*")
       .order("tanggal", { ascending: false })
@@ -65,11 +88,15 @@ export async function GET(_request: Request, ctx: Ctx) {
 }
 
 export async function POST(request: Request, ctx: Ctx) {
+  const auth = await requireWriter();
+  if ("error" in auth) return auth.error;
+
   const { table } = await ctx.params;
   const cfg = resolveConfig(table);
   if (!cfg) {
     return NextResponse.json({ ok: false, message: "Tabel tidak dikenal" }, { status: 400 });
   }
+  if (!canWriteTable(auth.user, cfg)) return outOfScope();
 
   try {
     const body = await request.json();
@@ -79,11 +106,13 @@ export async function POST(request: Request, ctx: Ctx) {
       return NextResponse.json({ ok: false, message: "Tanggal wajib diisi" }, { status: 400 });
     }
 
+    const client = createAdminClient();
+
     // Guard duplikat:
     // - uniquePerDate: 1 baris per tanggal
     // - uniqueBy: kombinasi tanggal + field (mis. expeditur)
     if (cfg.uniquePerDate || cfg.uniqueBy) {
-      let dupQuery = createClient()
+      let dupQuery = client
         .from(cfg.table)
         .select("id")
         .eq("tanggal", payload.tanggal);
@@ -102,7 +131,7 @@ export async function POST(request: Request, ctx: Ctx) {
       }
     }
 
-    const { data, error } = await createClient()
+    const { data, error } = await client
       .from(cfg.table)
       .insert(payload)
       .select()
@@ -123,11 +152,15 @@ export async function POST(request: Request, ctx: Ctx) {
 }
 
 export async function PUT(request: Request, ctx: Ctx) {
+  const auth = await requireWriter();
+  if ("error" in auth) return auth.error;
+
   const { table } = await ctx.params;
   const cfg = resolveConfig(table);
   if (!cfg) {
     return NextResponse.json({ ok: false, message: "Tabel tidak dikenal" }, { status: 400 });
   }
+  if (!canWriteTable(auth.user, cfg)) return outOfScope();
 
   try {
     const body = await request.json();
@@ -136,11 +169,12 @@ export async function PUT(request: Request, ctx: Ctx) {
       return NextResponse.json({ ok: false, message: "ID wajib diisi" }, { status: 400 });
     }
 
+    const client = createAdminClient();
     const updates = sanitizePayload(cfg, rest);
 
     // Guard duplikat saat edit: kombinasi unik tidak boleh menabrak baris lain
     if (updates.tanggal && (cfg.uniquePerDate || cfg.uniqueBy)) {
-      let dupQuery = createClient()
+      let dupQuery = client
         .from(cfg.table)
         .select("id")
         .eq("tanggal", updates.tanggal)
@@ -160,7 +194,7 @@ export async function PUT(request: Request, ctx: Ctx) {
       }
     }
 
-    const { data, error } = await createClient()
+    const { data, error } = await client
       .from(cfg.table)
       .update(updates)
       .eq("id", id)
@@ -182,11 +216,15 @@ export async function PUT(request: Request, ctx: Ctx) {
 }
 
 export async function DELETE(request: Request, ctx: Ctx) {
+  const auth = await requireWriter();
+  if ("error" in auth) return auth.error;
+
   const { table } = await ctx.params;
   const cfg = resolveConfig(table);
   if (!cfg) {
     return NextResponse.json({ ok: false, message: "Tabel tidak dikenal" }, { status: 400 });
   }
+  if (!canWriteTable(auth.user, cfg)) return outOfScope();
 
   try {
     const { id } = await request.json();
@@ -194,7 +232,7 @@ export async function DELETE(request: Request, ctx: Ctx) {
       return NextResponse.json({ ok: false, message: "ID wajib diisi" }, { status: 400 });
     }
 
-    const { error } = await createClient().from(cfg.table).delete().eq("id", id);
+    const { error } = await createAdminClient().from(cfg.table).delete().eq("id", id);
     if (error) throw error;
     return NextResponse.json({ ok: true });
   } catch (error) {

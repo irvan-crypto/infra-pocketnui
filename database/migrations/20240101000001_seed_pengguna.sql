@@ -48,7 +48,7 @@ VALUES (
   nama = EXCLUDED.nama,
   role = EXCLUDED.role;
 
--- Viewer
+-- Guest (read-only)
 INSERT INTO pengguna (nama, sap, jabatan, unit_kerja, username, password, role, unit_pp)
 VALUES (
   'Viewer Lapangan',
@@ -57,7 +57,7 @@ VALUES (
   'PP. Palu',
   'viewer_palu',
   '$2a$10$7Q9z0W2Y6Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y9Y=', -- Password: viewer123 (hash demo)
-  'viewer',
+  'guest',
   'PP. Palu'
 ) ON CONFLICT (username) DO UPDATE SET
   nama = EXCLUDED.nama,

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
+import { createAdminClient } from "@/lib/supabase/server";
+import { setSessionCookie } from "@/lib/auth/session";
+import { normalizeRole } from "@/lib/roles";
 import bcrypt from "bcryptjs";
+
+// ============================================================
+// Login memakai tabel `users_akun`.
+// Status selain "Aktif" ditolak.
+// ============================================================
 
 export async function POST(request: Request) {
   try {
@@ -14,11 +21,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createClient();
-    
-    // Cari user di database
-    const { data: user, error } = await supabase
-      .from("pengguna")
+    const { data: user, error } = await createAdminClient()
+      .from("users_akun")
       .select("*")
       .eq("username", username)
       .single();
@@ -30,9 +34,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Bandingkan password yang di-hash
     const isPasswordValid = await bcrypt.compare(password, user.password);
-
     if (!isPasswordValid) {
       return NextResponse.json(
         { ok: false, message: "Username atau password salah" },
@@ -40,17 +42,46 @@ export async function POST(request: Request) {
       );
     }
 
-    // Return user data (tanpa password)
+    if ((user.status || "").trim().toLowerCase() !== "aktif") {
+      return NextResponse.json(
+        { ok: false, message: "Akun Anda tidak aktif. Hubungi admin." },
+        { status: 403 }
+      );
+    }
+
+    const role = normalizeRole(user.role);
+    if (!role) {
+      console.error(`Login ditolak: role tidak dikenal "${user.role}" (${user.username})`);
+      return NextResponse.json(
+        { ok: false, message: "Role akun tidak valid. Hubungi admin." },
+        { status: 403 }
+      );
+    }
+
+    await setSessionCookie({
+      username: user.username,
+      role,
+      nama: user.nama_lengkap || user.username,
+      unitKerja: user.unit_kerja || undefined,
+      akses: user.akses || undefined,
+      aksesPp: user.akses_pp || undefined,
+      status: user.status || undefined,
+    });
+
     return NextResponse.json({
       ok: true,
       data: {
         username: user.username,
-        role: user.role,
-        nama: user.nama,
-        sap: user.sap,
+        role,
+        nama: user.nama_lengkap,
+        email: user.email,
+        no_handphone: user.no_handphone,
         jabatan: user.jabatan,
         unit_kerja: user.unit_kerja,
-        unit_pp: user.unit_pp,
+        departemen: user.departemen,
+        akses: user.akses,
+        akses_pp: user.akses_pp,
+        status: user.status,
         avatar_url: null,
       },
     });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/guard";
 import { MONITORING_TABLE_NAMES } from "@/lib/monitoring-config";
 
 // ============================================================
@@ -8,8 +9,11 @@ import { MONITORING_TABLE_NAMES } from "@/lib/monitoring-config";
 // ============================================================
 
 export async function GET() {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
+
   try {
-    const client = createClient();
+    const client = createAdminClient();
 
     const entries = await Promise.all(
       MONITORING_TABLE_NAMES.map(async (table) => {

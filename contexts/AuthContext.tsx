@@ -8,17 +8,10 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import { normalizeRole, type Role } from "@/lib/roles";
+import type { AuthUser } from "@/lib/auth-types";
 
-export type Role = 'admin' | 'operator' | 'viewer';
-
-export interface AuthUser {
-  role: Role;
-  username: string;
-  namaLengkap: string;
-  unitKerja?: string;
-  unit_pp?: string;
-  avatar_url?: string;
-}
+export type { Role, AuthUser };
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -26,37 +19,82 @@ interface AuthContextValue {
   ready: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  refresh: () => Promise<void>;
   updateUserField: (fields: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const STORAGE_KEY = "shipmonitor_auth";
-
-function getInitialUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.role === "string") {
-      return parsed as AuthUser;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+interface MeResponse {
+  ok: boolean;
+  data?: {
+    username: string;
+    role: string;
+    nama: string;
+    email?: string | null;
+    no_handphone?: string | null;
+    jabatan?: string | null;
+    unit_kerja?: string | null;
+    departemen?: string | null;
+    akses?: string | null;
+    akses_pp?: string | null;
+    status?: string | null;
+    avatar_url?: string | null;
+  };
 }
 
+function toAuthUser(data: NonNullable<MeResponse["data"]>): AuthUser | null {
+  const role = normalizeRole(data.role);
+  if (!role) return null;
+  return {
+    username: data.username,
+    role,
+    namaLengkap: data.nama || data.username,
+    email: data.email || undefined,
+    noHandphone: data.no_handphone || undefined,
+    jabatan: data.jabatan || undefined,
+    unitKerja: data.unit_kerja || undefined,
+    departemen: data.departemen || undefined,
+    akses: data.akses || undefined,
+    aksesPp: data.akses_pp || undefined,
+    status: data.status || undefined,
+    avatar_url: data.avatar_url || undefined,
+  };
+}
+
+// ============================================================
+// Sesi TIDAK lagi dibaca dari localStorage.
+// Role diambil dari cookie HttpOnly lewat /api/auth/me, sehingga
+// user tidak bisa menaikkan role sendiri dari browser.
+// ============================================================
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    const initial = getInitialUser();
-    setUser(initial);
-    setReady(true);
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me", { cache: "no-store" });
+      if (!res.ok) {
+        setUser(null);
+        return;
+      }
+      const json = (await res.json()) as MeResponse;
+      setUser(json.ok && json.data ? toAuthUser(json.data) : null);
+    } catch {
+      setUser(null);
+    }
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      await refresh();
+      if (active) setReady(true);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [refresh]);
 
   const login = useCallback(async (username: string, password: string) => {
     const res = await fetch("/api/auth/login", {
@@ -68,30 +106,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!data.ok) {
       throw new Error(data.message || "Login gagal");
     }
-    const userData: AuthUser = {
-      role: data.data.role,
-      username: data.data.username,
-      namaLengkap: data.data.nama || data.data.username,
-      unitKerja: data.data.unit_kerja,
-      unit_pp: data.data.unit_pp,
-      avatar_url: data.data.avatar_url,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+    const userData = toAuthUser(data.data);
+    if (!userData) {
+      throw new Error("Role akun tidak valid. Hubungi admin.");
+    }
     setUser(userData);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    // Hapus sesi di server (cookie HttpOnly) lalu bersihkan state
+    fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     setUser(null);
   }, []);
 
   const updateUserField = useCallback((fields: Partial<AuthUser>) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const updated = { ...prev, ...fields };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
+    setUser((prev) => (prev ? { ...prev, ...fields } : prev));
   }, []);
 
   return (
@@ -102,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ready,
         login,
         logout,
+        refresh,
         updateUserField,
       }}
     >

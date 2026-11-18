@@ -1,13 +1,21 @@
-export type Role = "admin" | "manager" | "operator";
+import type { Role } from "./roles";
 
+/** Profil pengguna yang dipakai di client (tanpa password) */
 export interface AuthUser {
-  role: Role;
-  email: string;
-  namaLengkap: string;
-  unitKerja?: string;
-  avatar_url?: string;
   username: string;
-  mustChangePassword: boolean;
+  role: Role;
+  namaLengkap: string;
+  email?: string;
+  noHandphone?: string;
+  jabatan?: string;
+  unitKerja?: string;
+  departemen?: string;
+  /** Akses modul: "Semua Akses" | "Packing Plant 1" | "Packing Plant 2" | "Silo" | "Angkutan Darat" */
+  akses?: string;
+  /** Unit PP spesifik (hanya untuk Packing Plant 1/2) */
+  aksesPp?: string;
+  status?: string;
+  avatar_url?: string;
 }
 
 export type RouteKey = "dashboard" | "shipments" | "profile";

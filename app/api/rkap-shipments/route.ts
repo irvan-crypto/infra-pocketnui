@@ -1,9 +1,32 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireUser, requireWriter } from "@/lib/auth/guard";
+import { canWriteData } from "@/lib/roles";
+import { resolveUserScope, isTargetInScope } from "@/lib/units";
+import type { SessionUser } from "@/lib/auth/session";
+
+// ============================================================
+// RKAP shipment laut (target per packing plant).
+// Operator hanya boleh CRUD untuk packing_plant unitnya.
+// ============================================================
+
+function canWritePlant(user: SessionUser, plant: unknown): boolean {
+  if (!canWriteData(user.role)) return false;
+  if (user.role === "operator") {
+    return isTargetInScope(resolveUserScope(user.role, user.akses, user.aksesPp), plant);
+  }
+  return true;
+}
+
+const outOfScope = (message: string) =>
+  NextResponse.json({ ok: false, message }, { status: 403 });
 
 export async function GET() {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
+
   try {
-    const { data, error } = await createClient()
+    const { data, error } = await createAdminClient()
       .from("rkap_shipments")
       .select("*")
       .order("tahun", { ascending: false })
@@ -19,9 +42,17 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireWriter();
+  if ("error" in auth) return auth.error;
+
   try {
     const body = await request.json();
-    const { data, error } = await createClient()
+
+    if (!canWritePlant(auth.user, body.packing_plant)) {
+      return outOfScope("Packing plant di luar unit kerja Anda.");
+    }
+
+    const { data, error } = await createAdminClient()
       .from("rkap_shipments")
       .insert(body)
       .select()
@@ -51,12 +82,35 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const auth = await requireWriter();
+  if ("error" in auth) return auth.error;
+
   try {
     const body = await request.json();
     const { id, ...updates } = body;
     if (!id) return NextResponse.json({ ok: false, message: "ID wajib diisi" }, { status: 400 });
 
-    const { data, error } = await createClient()
+    const client = createAdminClient();
+
+    if (auth.user.role === "operator") {
+      const { data: existing } = await client
+        .from("rkap_shipments")
+        .select("packing_plant")
+        .eq("id", id)
+        .single();
+
+      if (!existing) {
+        return NextResponse.json({ ok: false, message: "Data tidak ditemukan" }, { status: 404 });
+      }
+      if (!canWritePlant(auth.user, existing.packing_plant)) {
+        return outOfScope("Data ini bukan milik unit kerja Anda.");
+      }
+      if (updates.packing_plant !== undefined && !canWritePlant(auth.user, updates.packing_plant)) {
+        return outOfScope("Packing plant baru di luar unit kerja Anda.");
+      }
+    }
+
+    const { data, error } = await client
       .from("rkap_shipments")
       .update(updates)
       .eq("id", id)
@@ -72,15 +126,27 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const auth = await requireWriter();
+  if ("error" in auth) return auth.error;
+
   try {
     const { id } = await request.json();
     if (!id) return NextResponse.json({ ok: false, message: "ID wajib diisi" }, { status: 400 });
 
-    const { error } = await createClient()
-      .from("rkap_shipments")
-      .delete()
-      .eq("id", id);
+    const client = createAdminClient();
 
+    if (auth.user.role === "operator") {
+      const { data: existing } = await client
+        .from("rkap_shipments")
+        .select("packing_plant")
+        .eq("id", id)
+        .single();
+      if (!existing || !canWritePlant(auth.user, existing.packing_plant)) {
+        return outOfScope("Data ini bukan milik unit kerja Anda.");
+      }
+    }
+
+    const { error } = await client.from("rkap_shipments").delete().eq("id", id);
     if (error) throw error;
     return NextResponse.json({ ok: true });
   } catch (error) {

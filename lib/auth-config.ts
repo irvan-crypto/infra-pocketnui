@@ -1,22 +1,16 @@
-import type { Role, RouteKey } from "./auth-types";
+import { ROLE_META, type Role } from "./roles";
 
-export const ROLE_LABELS: Record<Role, { label: string; icon: string }> = {
-  admin: { label: "Admin", icon: "🛡️" },
-  manager: { label: "Manager", icon: "📊" },
-  operator: { label: "Operator", icon: "📝" },
-};
+/** Label + ikon untuk kebutuhan UI (Sidebar, badge, dsb.) */
+export const ROLE_LABELS: Record<Role, { label: string; icon: string }> = Object.fromEntries(
+  (Object.keys(ROLE_META) as Role[]).map((role) => [
+    role,
+    { label: ROLE_META[role].label, icon: ROLE_META[role].icon },
+  ])
+) as Record<Role, { label: string; icon: string }>;
 
-export const ROLE_ROUTES: Record<Role, RouteKey[]> = {
-  admin: ["dashboard", "shipments", "profile"],
-  manager: ["dashboard", "shipments", "profile"],
-  operator: ["dashboard", "shipments", "profile"],
-};
-
-export const getAccessibleRoutes = (role: Role): RouteKey[] => {
-  return ROLE_ROUTES[role] || [];
-};
+export const getAccessibleRoutes = (): string[] => [];
 
 export const DEFAULT_AVATAR_URL = "/icons/avatar-default.png";
 
+/** Key localStorage lama — tidak lagi dipakai untuk otorisasi (sesi = cookie HttpOnly) */
 export const STORAGE_KEY_AUTH = "shipmonitor_auth";
-export const DEFAULT_PASSWORD = "Password123";

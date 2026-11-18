@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronDown, ChevronLeft, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/auth-config";
 import { MENU, isChildActive, isGroupActive, getItemHref } from "@/lib/menu";
+import { canAccessPath } from "@/lib/access";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -32,6 +33,15 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
       setOpenGroups((prev) => ({ ...next, ...prev }));
     }
   }, [pathname]);
+
+  // Menu terbatas (Kelola Pengguna, DB Status) hanya untuk role tertentu
+  const menuItems = useMemo(
+    () =>
+      MENU.filter(
+        (item) => !item.restricted || canAccessPath(user?.role, getItemHref(item) || "")
+      ),
+    [user?.role]
+  );
 
   if (!user) return null;
 
@@ -61,7 +71,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5 scrollbar-thin">
-        {MENU.map((item) => {
+        {menuItems.map((item) => {
           const Icon = item.icon;
 
           // ── Menu dengan submenu (gaya dd-pocket) ──

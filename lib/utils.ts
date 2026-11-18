@@ -1,29 +1,19 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { roleLabel as labelOfRole, roleBadgeClass as badgeOfRole } from "./roles";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Label role untuk ditampilkan di UI */
+/** Label role untuk ditampilkan di UI (sumber: lib/roles.ts) */
 export function roleLabel(role: string | undefined): string {
-  switch (role) {
-    case "admin": return "Admin";
-    case "manager": return "Manager";
-    case "operator": return "Operator";
-    case "viewer": return "Viewer";
-    default: return "User";
-  }
+  return labelOfRole(role);
 }
 
-/** Warna badge pill role (gaya dd-pocket) */
+/** Warna badge pill role (sumber: lib/roles.ts) */
 export function roleBadgeClass(role: string | undefined): string {
-  switch (role) {
-    case "admin": return "bg-purple-50 text-purple-700";
-    case "manager": return "bg-blue-50 text-blue-700";
-    case "operator": return "bg-emerald-50 text-emerald-700";
-    default: return "bg-gray-50 text-gray-700";
-  }
+  return badgeOfRole(role);
 }
 
 export function formatDateIndonesian(date: Date | string | null): string {

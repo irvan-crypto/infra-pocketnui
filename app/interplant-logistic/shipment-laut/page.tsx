@@ -9,6 +9,7 @@ import { formatDateIndonesian } from "@/lib/utils";
 import { FileText, Plus, Edit3, Trash2, Loader2, Send, Download, X, Factory, Search } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
 import * as XLSX from "xlsx";
+import { getPermissions, canEditShipmentRow } from "@/lib/access";
 
 interface Shipment {
   id: string;
@@ -491,8 +492,9 @@ export default function InterplantLogisticShipmentLautPage() {
     );
   };
 
-  const canEdit = user?.role === "admin" || user?.role === "operator";
-  const canDelete = user?.role === "admin";
+  const perms = getPermissions(user);
+  const canEdit = perms.canCreate;
+  const canDelete = perms.canDelete;
 
   // Normalisasi nama plant agar pencocokan toleran terhadap spasi/kapital
   const normalizePlantName = (name: string | null | undefined) =>
@@ -641,9 +643,11 @@ export default function InterplantLogisticShipmentLautPage() {
       key: "_aksi", 
       header: "Aksi", 
       render: (s: Shipment) => {
+        const rowEditable = canEditShipmentRow(perms, s);
+        const rowDeletable = canDelete || rowEditable;
         return (
           <div className="flex items-center gap-1.5">
-            {canEdit && (
+            {rowEditable && (
               <button
                 onClick={() => triggerEdit(s)}
                 className="inline-flex items-center justify-center w-7 h-7 rounded text-xs transition-colors bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white border border-amber-100"
@@ -652,7 +656,7 @@ export default function InterplantLogisticShipmentLautPage() {
                 <Edit3 size={13} />
               </button>
             )}
-            {canDelete && (
+            {rowDeletable && (
               <button
                 onClick={() => triggerDelete(s.id)}
                 className="inline-flex items-center justify-center w-7 h-7 rounded text-xs transition-colors bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-100"
@@ -665,7 +669,7 @@ export default function InterplantLogisticShipmentLautPage() {
         );
       }
     },
-  ], [canEdit, canDelete]);
+  ], [canEdit, canDelete, perms]);
 
   if (loading) {
     return (

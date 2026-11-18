@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Edit2, X, AlertCircle, Download, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { getPermissions, canEditMonitoringPage } from "@/lib/access";
 import DataTable from "@/components/ui/DataTable";
 import SiloTankChart from "@/components/monitoring/SiloTankChart";
 import ExpediturSummaryCards from "@/components/monitoring/ExpediturSummaryCards";
@@ -22,11 +23,14 @@ import {
 type Row = Record<string, any>;
 type FormData = Record<string, string>;
 
-const WRITE_ROLES = ["admin", "operator"];
+const WRITE_ROLES = ["admin", "asisten_admin", "operator"];
 
 export default function MonitoringPage({ config }: { config: MonitoringTableConfig }) {
   const { user } = useAuth();
-  const canEdit = WRITE_ROLES.includes(user?.role || "");
+  // Role read-only (GM/SM/Manager/Guest) tidak mendapat aksi apa pun.
+  // Operator hanya untuk tabel unitnya.
+  const perms = getPermissions(user);
+  const canEdit = canEditMonitoringPage(perms, config.slug);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);

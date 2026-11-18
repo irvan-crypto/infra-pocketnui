@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { PORTS, PLANTS } from "@/lib/coordinates";
 import { SHIP_STATUS_LABELS, SHIP_STATUS_ORDER } from "@/lib/app-config";
 import { formatDateIndonesian } from "@/lib/utils";
+import { getPermissions, canEditShipmentRow } from "@/lib/access";
 
 interface Shipment {
   id: string;
@@ -167,8 +168,9 @@ export default function ShipmentsPage() {
     );
   }
 
-  const canEdit = user?.role === "admin" || user?.role === "operator";
-  const canDelete = user?.role === "admin";
+  const perms = getPermissions(user);
+  const canEdit = perms.canCreate;
+  const canDelete = perms.canDelete;
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -329,6 +331,10 @@ export default function ShipmentsPage() {
                     }
                   }
                   return (
+                    (() => {
+                      const rowEditable = canEditShipmentRow(perms, shipment);
+                      const rowDeletable = canDelete || rowEditable;
+                      return (
                     <tr key={shipment.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium">{shipment.nama_kapal}</td>
                       <td className="px-4 py-3">{shipment.pelabuhan_asal}</td>
@@ -341,7 +347,7 @@ export default function ShipmentsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          {canEdit && (
+                          {rowEditable && (
                             <button
                               onClick={() => handleEdit(shipment)}
                               className="text-blue-600 hover:text-blue-800 text-sm"
@@ -349,7 +355,7 @@ export default function ShipmentsPage() {
                               Edit
                             </button>
                           )}
-                          {canDelete && (
+                          {rowDeletable && (
                             <button
                               onClick={() => handleDelete(shipment.id)}
                               className="text-red-600 hover:text-red-800 text-sm"
@@ -360,6 +366,8 @@ export default function ShipmentsPage() {
                         </div>
                       </td>
                     </tr>
+                      );
+                    })()
                   );
                 })
               )}

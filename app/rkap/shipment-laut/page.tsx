@@ -7,6 +7,7 @@ import { PORTS, PLANTS } from "@/lib/coordinates";
 import DataTable from "@/components/ui/DataTable";
 import { Download, Edit3, Factory, FileText, Plus, Trash2, X, Search } from "lucide-react";
 import * as XLSX from "xlsx";
+import { getPermissions, canEditRkapRow } from "@/lib/access";
 
 interface RkapShipmentRow {
   id: string;
@@ -103,8 +104,9 @@ export default function RkapShipmentLautPage() {
     plant: "",
   });
 
-  const canEdit = user?.role === "admin" || user?.role === "operator";
-  const canDelete = user?.role === "admin";
+  const perms = getPermissions(user);
+  const canEdit = perms.canCreate;
+  const canDelete = perms.canDelete;
 
   useEffect(() => {
     if (!user) {
@@ -473,9 +475,12 @@ export default function RkapShipmentLautPage() {
     {
       key: "_aksi",
       header: "Aksi",
-      render: (s: RkapShipmentRow) => (
+      render: (s: RkapShipmentRow) => {
+        const rowEditable = canEditRkapRow(perms, s);
+        const rowDeletable = canDelete || rowEditable;
+        return (
         <div className="flex items-center gap-1.5">
-          {canEdit && (
+          {rowEditable && (
             <button
               onClick={() => handleEdit(s)}
               className="inline-flex items-center justify-center w-7 h-7 rounded text-xs transition-colors bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white border border-amber-100"
@@ -484,7 +489,7 @@ export default function RkapShipmentLautPage() {
               <Edit3 size={13} />
             </button>
           )}
-          {canDelete && (
+          {rowDeletable && (
             <button
               onClick={() => {
                 setPendingDeleteId(s.id);
@@ -497,9 +502,10 @@ export default function RkapShipmentLautPage() {
             </button>
           )}
         </div>
-      ),
+        );
+      },
     },
-  ], [canDelete, canEdit, realizations]);
+  ], [canDelete, canEdit, perms, realizations]);
 
   if (loading) {
     return (

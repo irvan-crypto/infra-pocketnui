@@ -1,15 +1,41 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireUser, requireWriter } from "@/lib/auth/guard";
+import { canWriteData } from "@/lib/roles";
+import { resolveUserScope, isTargetInScope } from "@/lib/units";
+import type { SessionUser } from "@/lib/auth/session";
+
+// ============================================================
+// Shipment laut.
+// - GET  : semua role yang login
+// - POST/PUT : admin, asisten admin, operator (operator hanya
+//              untuk tujuan_pp sesuai unit kerjanya)
+// - DELETE : admin & asisten admin
+// ============================================================
+
+function scopeOf(user: SessionUser) {
+  return resolveUserScope(user.role, user.akses, user.aksesPp);
+}
+
+/** Operator tanpa unit yang dikenal tidak boleh menulis */
+function canWriteTarget(user: SessionUser, target: unknown): boolean {
+  if (!canWriteData(user.role)) return false;
+  const scope = scopeOf(user);
+  if (user.role === "operator") return isTargetInScope(scope, target);
+  return true;
+}
 
 export async function GET() {
+  const auth = await requireUser();
+  if ("error" in auth) return auth.error;
+
   try {
-    const { data, error } = await createClient()
+    const { data, error } = await createAdminClient()
       .from("shipments")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-
     return NextResponse.json({ ok: true, data });
   } catch (error) {
     console.error("GET shipments error:", error);
@@ -21,9 +47,23 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireWriter();
+  if ("error" in auth) return auth.error;
+
   try {
     const body = await request.json();
-    const { data, error } = await createClient()
+
+    if (!canWriteTarget(auth.user, body.tujuan_pp)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Tujuan PP di luar unit kerja Anda. Hubungi Admin bila perlu.",
+        },
+        { status: 403 }
+      );
+    }
+
+    const { data, error } = await createAdminClient()
       .from("shipments")
       .insert(body)
       .select()
@@ -45,6 +85,9 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const auth = await requireWriter();
+  if ("error" in auth) return auth.error;
+
   try {
     const body = await request.json();
     const { id, ...updates } = body;
@@ -56,7 +99,37 @@ export async function PUT(request: Request) {
       );
     }
 
-    const { data, error } = await createClient()
+    const client = createAdminClient();
+
+    // Operator hanya boleh mengubah baris milik unitnya
+    if (auth.user.role === "operator") {
+      const { data: existing } = await client
+        .from("shipments")
+        .select("tujuan_pp")
+        .eq("id", id)
+        .single();
+
+      if (!existing) {
+        return NextResponse.json(
+          { ok: false, message: "Data tidak ditemukan" },
+          { status: 404 }
+        );
+      }
+      if (!canWriteTarget(auth.user, existing.tujuan_pp)) {
+        return NextResponse.json(
+          { ok: false, message: "Data ini bukan milik unit kerja Anda." },
+          { status: 403 }
+        );
+      }
+      if (updates.tujuan_pp !== undefined && !canWriteTarget(auth.user, updates.tujuan_pp)) {
+        return NextResponse.json(
+          { ok: false, message: "Tujuan PP baru di luar unit kerja Anda." },
+          { status: 403 }
+        );
+      }
+    }
+
+    const { data, error } = await client
       .from("shipments")
       .update(updates)
       .eq("id", id)
@@ -76,6 +149,9 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const auth = await requireWriter();
+  if ("error" in auth) return auth.error;
+
   try {
     const { id } = await request.json();
 
@@ -86,11 +162,23 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const { error } = await createClient()
-      .from("shipments")
-      .delete()
-      .eq("id", id);
+    const client = createAdminClient();
 
+    if (auth.user.role === "operator") {
+      const { data: existing } = await client
+        .from("shipments")
+        .select("tujuan_pp")
+        .eq("id", id)
+        .single();
+      if (!existing || !canWriteTarget(auth.user, existing.tujuan_pp)) {
+        return NextResponse.json(
+          { ok: false, message: "Data ini bukan milik unit kerja Anda." },
+          { status: 403 }
+        );
+      }
+    }
+
+    const { error } = await client.from("shipments").delete().eq("id", id);
     if (error) throw error;
 
     return NextResponse.json({ ok: true });

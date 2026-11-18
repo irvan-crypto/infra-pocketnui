@@ -7,7 +7,15 @@ CREATE TABLE pengguna (
     unit_kerja TEXT,
     username TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('admin', 'operator', 'viewer')),
+    role TEXT NOT NULL DEFAULT 'guest' CHECK (role IN (
+        'admin',
+        'asisten_admin',
+        'general_manager',
+        'senior_manager',
+        'manager',
+        'operator',
+        'guest'
+    )),
     unit_pp TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

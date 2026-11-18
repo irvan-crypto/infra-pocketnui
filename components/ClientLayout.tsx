@@ -5,10 +5,12 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import LoginScreen from "@/components/LoginScreen";
+import AccessDenied from "@/components/AccessDenied";
+import { canAccessPath, getRouteRule } from "@/lib/access";
 import { usePathname } from "next/navigation";
 
 function LayoutContent({ children }: { children: ReactNode }) {
-  const { ready, isAuthenticated } = useAuth();
+  const { user, ready, isAuthenticated } = useAuth();
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -35,6 +37,10 @@ function LayoutContent({ children }: { children: ReactNode }) {
     return <LoginScreen />;
   }
 
+  // Guard halaman: role yang tidak berhak tidak pernah melihat kontennya
+  const rule = getRouteRule(pathname);
+  const allowed = canAccessPath(user?.role, pathname);
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar
@@ -55,7 +61,11 @@ function LayoutContent({ children }: { children: ReactNode }) {
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full">
           <div className="w-full mx-auto" style={{ maxWidth: "1440px" }}>
-            {children}
+            {allowed ? (
+              children
+            ) : (
+              <AccessDenied feature={rule?.label} requiredRoles={rule?.roles} />
+            )}
           </div>
         </main>
 

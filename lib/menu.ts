@@ -21,6 +21,8 @@ export interface MenuItem {
   icon: LucideIcon;
   href?: string;
   children?: MenuChild[];
+  /** true = hanya role tertentu (lihat RESTRICTED_ROUTES di lib/access.ts) */
+  restricted?: boolean;
 }
 
 export const MENU: MenuItem[] = [
@@ -93,8 +95,8 @@ export const MENU: MenuItem[] = [
       { title: "Shipment Laut", href: "/rkap/shipment-laut" },
     ],
   },
-  { title: "Kelola Pengguna", icon: Users, href: "/kelola-pengguna" },
-  { title: "DB Status", icon: Database, href: "/db-status" },
+  { title: "Kelola Pengguna", icon: Users, href: "/kelola-pengguna", restricted: true },
+  { title: "DB Status", icon: Database, href: "/db-status", restricted: true },
 ];
 
 export function isChildActive(pathname: string, href: string): boolean {

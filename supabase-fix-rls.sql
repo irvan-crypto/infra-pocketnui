@@ -1,3 +1,8 @@
+-- ⚠️ DEPRECATED (lihat database/migrations/20240101000003_lockdown_rls.sql)
+-- File ini MEMBUKA RLS untuk anon. Aplikasi sekarang mengakses Supabase
+-- lewat API route (service role key) + guard role, sehingga file ini
+-- sebaiknya TIDAK dipakai lagi pada instalasi baru.
+--
 -- ============================================================
 -- FIX RLS: tabel shipments tidak terlihat dari aplikasi
 -- ============================================================
