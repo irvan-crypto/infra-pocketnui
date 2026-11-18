@@ -281,6 +281,17 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
     }
   };
 
+  const fieldGroups = useMemo(() => {
+    const prefix = config.chart?.columnPrefix || "stok_silo";
+    const map: Record<string, string> = {};
+    config.tableGroups?.forEach((g) => {
+      g.columns.forEach((n) => {
+        map[`${prefix}${n}`] = g.label;
+      });
+    });
+    return map;
+  }, [config]);
+
   const columns = useMemo(
     () => [
       {
@@ -291,6 +302,7 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
       ...config.fields.map((f) => ({
         key: f.key,
         header: f.shortLabel || f.label,
+        group: fieldGroups[f.key],
         className: f.type === "number" ? "text-right" : "text-left",
         render: (r: Row) =>
           f.type === "number" ? (
@@ -330,7 +342,7 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
         : []),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [config, canEdit, rows]
+    [config, canEdit, rows, fieldGroups]
   );
 
   if (loading) {

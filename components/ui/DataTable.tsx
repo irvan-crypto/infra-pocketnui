@@ -9,6 +9,8 @@ interface Column<T> {
   render: (item: T) => ReactNode;
   className?: string;
   hideOnMobile?: boolean;
+  /** Label grup header (mis. "TONASA 2/3"). Kolom bergrup berurutan digabung jadi 1 sel header. */
+  group?: string;
 }
 
 interface Props<T> {
@@ -54,6 +56,46 @@ export default function DataTable<T>({
   };
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // ── Grouped header ───────────────────────────────────────────
+  const hasGroups = columns.some((col) => !!col.group);
+  const groupHeaderCells: {
+    key: string;
+    label: string;
+    colSpan?: number;
+    rowSpan?: number;
+    hideOnMobile?: boolean;
+    className?: string;
+  }[] = [];
+
+  for (let i = 0; i < columns.length; i += 1) {
+    const col = columns[i];
+
+    if (!col.group) {
+      groupHeaderCells.push({
+        key: col.key,
+        label: String(col.header),
+        rowSpan: 2,
+        hideOnMobile: col.hideOnMobile,
+        className: col.className,
+      });
+      continue;
+    }
+
+    // Kumpulkan kolom berurutan dengan grup yang sama
+    let end = i;
+    while (end + 1 < columns.length && columns[end + 1].group === col.group) end += 1;
+    const run = columns.slice(i, end + 1);
+
+    groupHeaderCells.push({
+      key: `group-${col.group}-${i}`,
+      label: col.group,
+      colSpan: run.length,
+      hideOnMobile: run.every((c) => c.hideOnMobile),
+    });
+
+    i = end;
+  }
 
   const filtered = search
     ? data.filter((item) =>
@@ -124,18 +166,57 @@ export default function DataTable<T>({
       <div className="overflow-x-auto" style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
         <table className="w-full table-auto">
           <thead>
-            <tr className="bg-gray-200 border-b-2 border-gray-400">
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`px-3 sm:px-4 lg:px-5 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap
-                    ${col.hideOnMobile ? "hidden lg:table-cell" : ""}
-                    ${col.className || ""}`}
-                >
-                  {col.header}
-                </th>
-              ))}
-            </tr>
+            {hasGroups ? (
+              <>
+                {/* Baris 1: grup kolom (colspan) + kolom tanpa grup (rowspan 2) */}
+                <tr className="bg-gray-200">
+                  {groupHeaderCells.map((cell) => (
+                    <th
+                      key={cell.key}
+                      colSpan={cell.colSpan}
+                      rowSpan={cell.rowSpan}
+                      className={`px-3 sm:px-4 lg:px-5 py-2 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap border-b border-gray-300
+                        ${cell.colSpan && cell.colSpan > 1 ? "text-center" : "text-left"}
+                        ${cell.hideOnMobile ? "hidden lg:table-cell" : ""}
+                        ${cell.className || ""}`}
+                    >
+                      {cell.label}
+                    </th>
+                  ))}
+                </tr>
+                {/* Baris 2: sub-header kolom bergrup */}
+                <tr className="bg-gray-200 border-b-2 border-gray-400">
+                  {columns.map((col, idx) => {
+                    if (!col.group) return null;
+                    const runStart = idx === 0 || columns[idx - 1]?.group !== col.group;
+                    return (
+                      <th
+                        key={col.key}
+                        className={`px-3 sm:px-4 lg:px-5 py-2 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap
+                          ${runStart ? "border-l border-gray-300" : ""}
+                          ${col.hideOnMobile ? "hidden lg:table-cell" : ""}
+                          ${col.className || ""}`}
+                      >
+                        {col.header}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </>
+            ) : (
+              <tr className="bg-gray-200 border-b-2 border-gray-400">
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`px-3 sm:px-4 lg:px-5 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap
+                      ${col.hideOnMobile ? "hidden lg:table-cell" : ""}
+                      ${col.className || ""}`}
+                  >
+                    {col.header}
+                  </th>
+                ))}
+              </tr>
+            )}
           </thead>
           <tbody>
             {filtered.length === 0 ? (

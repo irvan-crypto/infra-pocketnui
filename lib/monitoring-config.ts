@@ -25,6 +25,8 @@ export interface MonitoringTableConfig {
   uniqueBy?: string; // keunikan = tanggal + field ini (mis. nama_expeditur)
   fields: MonitoringField[];
   chart?: MonitoringChartConfig; // grafik tabung silo (opsional)
+  /** Grup header tabel data (mis. TONASA 2/3 membawahi Silo 21-24) */
+  tableGroups?: { label: string; columns: number[] }[];
 }
 
 /** Konfigurasi grafik tabung silo */
@@ -69,6 +71,11 @@ export const MONITORING_CONFIGS: MonitoringTableConfig[] = [
     subtitle: "Stok harian per silo (ton)",
     pageSubtitle: "Update Data terbaru per 17 Nov 2026",
     uniquePerDate: true,
+    tableGroups: [
+      { label: "TONASA 2/3", columns: [21, 22, 23, 24] },
+      { label: "TONASA 4", columns: [41, 42, 43] },
+      { label: "TONASA 5", columns: [51, 52, 53] },
+    ],
     chart: {
       groups: [[21, 22, 23, 24], [41, 42, 43], [51, 52, 53]],
       groupNames: { 21: "TONASA 2/3", 41: "TONASA 4", 51: "TONASA 5" },
