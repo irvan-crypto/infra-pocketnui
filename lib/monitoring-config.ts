@@ -1,0 +1,224 @@
+// ============================================================
+// Konfigurasi tabel monitoring harian (18 tabel Supabase)
+// Sumber tunggal untuk: form input, kolom DataTable, whitelist API
+// ============================================================
+
+export interface MonitoringField {
+  key: string;
+  label: string; // label di form input
+  shortLabel?: string; // header kolom tabel (fallback: label)
+  type: "number" | "text";
+  group?: string; // pengelompokan di form (mis. "OPC", "PCC")
+  generated?: boolean; // generated column — dihitung database, tidak diisi manual
+  integer?: boolean; // tampil tanpa desimal (retase, armada)
+  required?: boolean;
+}
+
+export interface MonitoringTableConfig {
+  slug: string; // segmen URL: /monitoring/<slug>
+  table: string; // nama tabel Supabase
+  title: string;
+  subtitle?: string;
+  uniquePerDate: boolean; // hanya 1 baris per tanggal
+  uniqueBy?: string; // keunikan = tanggal + field ini (mis. nama_expeditur)
+  fields: MonitoringField[];
+  chart?: MonitoringChartConfig; // grafik tabung silo (opsional)
+}
+
+/** Konfigurasi grafik tabung silo */
+export interface MonitoringChartConfig {
+  groups: number[][]; // kelompok silo per kartu
+  groupNames: Record<number, string>; // nama kartu (kunci = nomor pertama grup)
+  columnPrefix: string; // kolom stok = prefix + nomor (mis. "stok_silo" + 21)
+  scaleHeight?: boolean; // tinggi tabung proporsional kapasitas
+}
+
+/** Kolom masuk/rilis/stok untuk PP cabang (pola sama, prefiks berbeda) */
+function ppFields(prefix: string): MonitoringField[] {
+  return [
+    { key: `${prefix}_masuk`, label: "Masuk (ton)", shortLabel: "Masuk", type: "number" },
+    { key: `${prefix}_rilis`, label: "Rilis (ton)", shortLabel: "Rilis", type: "number" },
+    { key: `${prefix}_stok`, label: "Stok (ton)", shortLabel: "Stok", type: "number" },
+  ];
+}
+
+function ppConfig(
+  slug: string,
+  table: string,
+  title: string,
+  prefix: string
+): MonitoringTableConfig {
+  return {
+    slug,
+    table,
+    title,
+    subtitle: "Monitoring harian masuk, rilis, dan stok (ton)",
+    uniquePerDate: true,
+    fields: ppFields(prefix),
+  };
+}
+
+export const MONITORING_CONFIGS: MonitoringTableConfig[] = [
+  {
+    slug: "silo-semen",
+    table: "silo_semen",
+    title: "Silo Semen",
+    subtitle: "Stok harian per silo (ton)",
+    uniquePerDate: true,
+    chart: {
+      groups: [[21, 22, 23, 24], [41, 42, 43], [51, 52, 53]],
+      groupNames: { 21: "TONASA 2/3", 41: "TONASA 4", 51: "TONASA 5" },
+      columnPrefix: "stok_silo",
+    },
+    fields: [
+      { key: "stok_silo21", label: "Stok Silo 21", shortLabel: "Silo 21", type: "number" },
+      { key: "stok_silo22", label: "Stok Silo 22", shortLabel: "Silo 22", type: "number" },
+      { key: "stok_silo23", label: "Stok Silo 23", shortLabel: "Silo 23", type: "number" },
+      { key: "stok_silo24", label: "Stok Silo 24", shortLabel: "Silo 24", type: "number" },
+      { key: "stok_silo41", label: "Stok Silo 41", shortLabel: "Silo 41", type: "number" },
+      { key: "stok_silo42", label: "Stok Silo 42", shortLabel: "Silo 42", type: "number" },
+      { key: "stok_silo43", label: "Stok Silo 43", shortLabel: "Silo 43", type: "number" },
+      { key: "stok_silo51", label: "Stok Silo 51", shortLabel: "Silo 51", type: "number" },
+      { key: "stok_silo52", label: "Stok Silo 52", shortLabel: "Silo 52", type: "number" },
+      { key: "stok_silo53", label: "Stok Silo 53", shortLabel: "Silo 53", type: "number" },
+    ],
+  },
+  {
+    slug: "silo-pantai",
+    table: "silo_pantai",
+    title: "Silo Pantai",
+    subtitle: "Stok harian Silo Pantai 1–10 (ton)",
+    uniquePerDate: true,
+    chart: {
+      groups: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]],
+      groupNames: { 1: "Silo Pantai" },
+      columnPrefix: "silo_",
+      scaleHeight: true,
+    },
+    fields: [
+      { key: "silo_1", label: "Silo 1", type: "number" },
+      { key: "silo_2", label: "Silo 2", type: "number" },
+      { key: "silo_3", label: "Silo 3", type: "number" },
+      { key: "silo_4", label: "Silo 4", type: "number" },
+      { key: "silo_5", label: "Silo 5", type: "number" },
+      { key: "silo_6", label: "Silo 6", type: "number" },
+      { key: "silo_7", label: "Silo 7", type: "number" },
+      { key: "silo_8", label: "Silo 8", type: "number" },
+      { key: "silo_9", label: "Silo 9", type: "number" },
+      { key: "silo_10", label: "Silo 10", type: "number" },
+      { key: "total_stok", label: "Total Stok", shortLabel: "Total", type: "number", generated: true },
+    ],
+  },
+  {
+    slug: "cp-tonasa",
+    table: "cp_tonasa",
+    title: "CP Tonasa",
+    subtitle: "Produksi & rilis harian OPC & PCC (ton)",
+    uniquePerDate: true,
+    fields: [
+      { key: "prod_fmopc", label: "Produksi FM (OPC)", shortLabel: "Prod. FM", type: "number", group: "OPC" },
+      { key: "rilis_spantaiopc", label: "Rilis Silo Pantai (OPC)", shortLabel: "R. Silo Pantai", type: "number", group: "OPC" },
+      { key: "rilis_sminiopc", label: "Rilis Silo Mini (OPC)", shortLabel: "R. Silo Mini", type: "number", group: "OPC" },
+      { key: "rilis_curah_fotopc", label: "Rilis Curah FOTO (OPC)", shortLabel: "R. Curah FOTO", type: "number", group: "OPC" },
+      { key: "rilis_jumbo_fobopc", label: "Rilis Jumbo FOB (OPC)", shortLabel: "R. Jumbo FOB", type: "number", group: "OPC" },
+      { key: "rilis_jumbo_fotopc", label: "Rilis Jumbo FOTO (OPC)", shortLabel: "R. Jumbo FOTO", type: "number", group: "OPC" },
+      { key: "total_rilisopc", label: "Total Rilis (OPC)", shortLabel: "Total Rilis", type: "number", group: "OPC", generated: true },
+      { key: "prod_fmpcc", label: "Produksi FM (PCC)", shortLabel: "Prod. FM", type: "number", group: "PCC" },
+      { key: "rilis_spantaipcc", label: "Rilis Silo Pantai (PCC)", shortLabel: "R. Silo Pantai", type: "number", group: "PCC" },
+      { key: "rilis_curah_fotpcc", label: "Rilis Curah FOTO (PCC)", shortLabel: "R. Curah FOTO", type: "number", group: "PCC" },
+      { key: "rilis_ppmkspcc", label: "Rilis PPMKS (PCC)", shortLabel: "R. PPMKS", type: "number", group: "PCC" },
+      { key: "rilis_packerpcc", label: "Rilis Packer (PCC)", shortLabel: "R. Packer", type: "number", group: "PCC" },
+      { key: "rilis_polyslingpcc", label: "Rilis Polysling (PCC)", shortLabel: "R. Polysling", type: "number", group: "PCC" },
+      { key: "rilis_jumbo_fobpcc", label: "Rilis Jumbo FOB (PCC)", shortLabel: "R. Jumbo FOB", type: "number", group: "PCC" },
+      { key: "rilis_jumbo_fotpcc", label: "Rilis Jumbo FOTO (PCC)", shortLabel: "R. Jumbo FOTO", type: "number", group: "PCC" },
+      { key: "total_rilispcc", label: "Total Rilis (PCC)", shortLabel: "Total Rilis", type: "number", group: "PCC", generated: true },
+    ],
+  },
+  {
+    slug: "pp-biringkassi",
+    table: "pp_biringkassi",
+    title: "PP Biringkassi",
+    subtitle: "Masuk, rilis, dan stok harian OPC & PCC (ton)",
+    uniquePerDate: true,
+    fields: [
+      { key: "masukopc", label: "Masuk (OPC)", shortLabel: "Masuk", type: "number", group: "OPC" },
+      { key: "rilis_jumboopc", label: "Rilis Jumbo (OPC)", shortLabel: "R. Jumbo", type: "number", group: "OPC" },
+      { key: "rilis_packeropc", label: "Rilis Packer (OPC)", shortLabel: "R. Packer", type: "number", group: "OPC" },
+      { key: "rilis_outletppopc", label: "Rilis Outlet PP (OPC)", shortLabel: "R. Outlet PP", type: "number", group: "OPC" },
+      { key: "total_rilisopc", label: "Total Rilis (OPC)", shortLabel: "Total Rilis", type: "number", group: "OPC", generated: true },
+      { key: "stok_opc", label: "Stok (OPC)", shortLabel: "Stok", type: "number", group: "OPC" },
+      { key: "masukpcc", label: "Masuk (PCC)", shortLabel: "Masuk", type: "number", group: "PCC" },
+      { key: "rilis_jumbopcc", label: "Rilis Jumbo (PCC)", shortLabel: "R. Jumbo", type: "number", group: "PCC" },
+      { key: "rilis_packerpcc", label: "Rilis Packer (PCC)", shortLabel: "R. Packer", type: "number", group: "PCC" },
+      { key: "rilis_outletpppcc", label: "Rilis Outlet PP (PCC)", shortLabel: "R. Outlet PP", type: "number", group: "PCC" },
+      { key: "total_rilispcc", label: "Total Rilis (PCC)", shortLabel: "Total Rilis", type: "number", group: "PCC", generated: true },
+      { key: "stok_pcc", label: "Stok (PCC)", shortLabel: "Stok", type: "number", group: "PCC" },
+    ],
+  },
+  {
+    slug: "silo-mini",
+    table: "silo_mini",
+    title: "Silo Mini",
+    subtitle: "Masuk, rilis jumbo, dan stok harian OPC (ton)",
+    uniquePerDate: true,
+    fields: [
+      { key: "masukopc", label: "Masuk (OPC)", shortLabel: "Masuk", type: "number" },
+      { key: "rilis_jumboopc", label: "Rilis Jumbo (OPC)", shortLabel: "R. Jumbo", type: "number" },
+      { key: "stok_opc", label: "Stok (OPC)", shortLabel: "Stok", type: "number" },
+    ],
+  },
+  ppConfig("pp1-samarinda", "pp1_samarinda", "PP1 Samarinda", "sama"),
+  ppConfig("pp1-balikpapan", "pp1_balikpapan", "PP1 Balikpapan", "bpp"),
+  ppConfig("pp1-banjar", "pp1_banjar", "PP1 Banjar", "bjr"),
+  ppConfig("pp1-palu", "pp1_palu", "PP1 Palu", "palu"),
+  ppConfig("pp1-lembar", "pp1_lembar", "PP1 Lembar", "lbr"),
+  ppConfig("pp1-makassar", "pp1_makassar", "PP1 Makassar", "mks"),
+  ppConfig("pp2-bitung", "pp2_bitung", "PP2 Bitung", "btg"),
+  ppConfig("pp2-mamuju", "pp2_mamuju", "PP2 Mamuju", "mmju"),
+  ppConfig("pp2-kendari", "pp2_kendari", "PP2 Kendari", "kdri"),
+  ppConfig("pp2-oba", "pp2_oba", "PP2 Oba", "oba"),
+  ppConfig("pp2-ambon", "pp2_ambon", "PP2 Ambon", "abn"),
+  ppConfig("pp2-sorong", "pp2_sorong", "PP2 Sorong", "srg"),
+  {
+    slug: "angkutan-darat",
+    table: "angkutan_darat",
+    title: "Angkutan Darat",
+    subtitle: "Retase & armada operasi per expeditur",
+    uniquePerDate: false, // beberapa expeditur bisa di tanggal yang sama
+    uniqueBy: "nama_expeditur", // 1 expeditur hanya 1 baris per tanggal
+    fields: [
+      { key: "nama_expeditur", label: "Nama Expeditur", shortLabel: "Expeditur", type: "text", required: true },
+      { key: "retase", label: "Retase", type: "number", integer: true },
+      { key: "tonase", label: "Tonase (ton)", shortLabel: "Tonase", type: "number" },
+      { key: "armada_operasi", label: "Armada Operasi", shortLabel: "Armada", type: "number", integer: true },
+    ],
+  },
+];
+
+export function getMonitoringConfig(slug: string): MonitoringTableConfig | undefined {
+  return MONITORING_CONFIGS.find((c) => c.slug === slug);
+}
+
+/** Whitelist nama tabel untuk API generik */
+export const MONITORING_TABLE_NAMES = MONITORING_CONFIGS.map((c) => c.table);
+
+/** Format angka gaya Indonesia: 1.234,56 (atau tanpa desimal jika integer) */
+export function formatMonitoringNumber(
+  value: number | string | null | undefined,
+  integer = false
+): string {
+  const n = Number(value || 0);
+  return n.toLocaleString("id-ID", {
+    minimumFractionDigits: integer ? 0 : 2,
+    maximumFractionDigits: integer ? 0 : 2,
+  });
+}
+
+/** Format tanggal "YYYY-MM-DD" -> "12 Jul 2026" */
+export function formatTanggalPanjang(date: string | null | undefined): string {
+  if (!date) return "-";
+  const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+  const [y, m, d] = date.slice(0, 10).split("-");
+  if (!y || !m || !d) return date;
+  return `${d} ${bulan[Number(m) - 1] ?? m} ${y}`;
+}

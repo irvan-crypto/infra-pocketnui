@@ -111,6 +111,7 @@ interface Shipment {
 
 interface ShipmentMapProps {
   shipments: Shipment[];
+  fullScreen?: boolean;
 }
 
 function getLatestStatus(shipment: Shipment): { status: ShipStatusKey; timestamp: string | null } {
@@ -332,7 +333,7 @@ function FitBounds() {
   return null;
 }
 
-export default function ShipmentMap({ shipments }: ShipmentMapProps) {
+export default function ShipmentMap({ shipments, fullScreen = false }: ShipmentMapProps) {
   const [center] = useState<[number, number]>([-3.0, 118.0]); // Center of Indonesia
   const [isClient, setIsClient] = useState(false);
   const [, setTick] = useState(0);
@@ -348,11 +349,15 @@ export default function ShipmentMap({ shipments }: ShipmentMapProps) {
   }, []);
 
   if (!isClient) {
-    return <div className="h-[600px] w-full bg-gray-100 rounded-xl flex items-center justify-center text-gray-400">Loading peta...</div>;
+    return (
+      <div className={fullScreen ? "h-screen w-full bg-gray-100 flex items-center justify-center text-gray-400" : "h-[600px] w-full bg-gray-100 rounded-xl flex items-center justify-center"}>
+        Loading peta...
+      </div>
+    );
   }
 
   return (
-    <div className="w-full h-[600px] rounded-xl overflow-hidden border border-gray-200 shadow-sm relative isolate z-0">
+    <div className={fullScreen ? "w-full h-screen rounded-xl border-0 shadow-sm bg-white relative isolate z-0 p-4" : "w-full h-[600px] rounded-xl overflow-hidden border border-gray-200 shadow-sm relative isolate z-0"}>
       <MapContainer
         center={center}
         zoom={5}

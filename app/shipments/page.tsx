@@ -298,14 +298,14 @@ export default function ShipmentsPage() {
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Kapal</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Asal</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tujuan</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Muatan</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Aksi</th>
+            <thead>
+              <tr className="bg-gray-200 border-b-2 border-gray-400">
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Kapal</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Asal</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Tujuan</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Muatan</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -329,7 +329,7 @@ export default function ShipmentsPage() {
                     }
                   }
                   return (
-                    <tr key={shipment.id} className="border-b hover:bg-gray-50">
+                    <tr key={shipment.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium">{shipment.nama_kapal}</td>
                       <td className="px-4 py-3">{shipment.pelabuhan_asal}</td>
                       <td className="px-4 py-3">{shipment.tujuan_pp}</td>

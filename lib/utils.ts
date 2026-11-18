@@ -5,6 +5,27 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Label role untuk ditampilkan di UI */
+export function roleLabel(role: string | undefined): string {
+  switch (role) {
+    case "admin": return "Admin";
+    case "manager": return "Manager";
+    case "operator": return "Operator";
+    case "viewer": return "Viewer";
+    default: return "User";
+  }
+}
+
+/** Warna badge pill role (gaya dd-pocket) */
+export function roleBadgeClass(role: string | undefined): string {
+  switch (role) {
+    case "admin": return "bg-purple-50 text-purple-700";
+    case "manager": return "bg-blue-50 text-blue-700";
+    case "operator": return "bg-emerald-50 text-emerald-700";
+    default: return "bg-gray-50 text-gray-700";
+  }
+}
+
 export function formatDateIndonesian(date: Date | string | null): string {
   if (!date) return "-";
 

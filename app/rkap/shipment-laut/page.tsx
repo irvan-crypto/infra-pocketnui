@@ -628,13 +628,13 @@ export default function RkapShipmentLautPage() {
         <div className="card-body p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Packing Plant</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Target</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Realisasi</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">% Capaian</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Sisa</th>
-                <th className="text-center px-4 py-3 font-medium text-gray-600">Status</th>
+              <tr className="bg-gray-200 border-b-2 border-gray-400">
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Packing Plant</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Target</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Realisasi</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">% Capaian</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Sisa</th>
+                <th className="text-center px-4 py-3 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody>

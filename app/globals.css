@@ -1,8 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
-
-:root {
-  --sidebar-width: 260px;
-}
 
 @theme {
   --font-sans: "Inter", system-ui, sans-serif;
@@ -18,12 +15,6 @@ body {
   color: #111827;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-.glass {
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.35);
 }
 
 @layer components {
@@ -57,90 +48,50 @@ body {
   }
 }
 
-/* ── Button Effects ── */
+/* ── Button Effects (gaya dd-pocket) ── */
 
-@keyframes glowPulse {
-  0%,
-  100% {
-    box-shadow: 0 0 8px rgba(26, 86, 219, 0.25);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(26, 86, 219, 0.55);
-  }
-}
-
-@keyframes shimmerMove {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-/* Glow pulsing — nyala-mati lembut di belakang tombol */
+/* Glow button animation — shimmer + pulse + scale */
 .btn-glow {
-  animation: glowPulse 2s ease-in-out infinite;
-}
-
-/* Shimmer auto — kilau bergerak terus-menerus (untuk tombol utama) */
-.btn-shimmer {
   position: relative;
   overflow: hidden;
+  transition: transform 0.3s ease;
 }
-
-.btn-shimmer::before {
+.btn-glow::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.15) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.3) 50%, transparent 75%);
   background-size: 200% 100%;
-  animation: shimmerMove 2.5s ease-in-out infinite;
-  pointer-events: none;
+  animation: btnShimmer 4s ease-in-out infinite;
   border-radius: inherit;
+  pointer-events: none;
 }
-
-/* Shimmer hover-only — kilau muncul saat cursor di atas (untuk tombol toolbar) */
-.btn-shimmer-hover {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-shimmer-hover::before {
+.btn-glow::after {
   content: "";
   position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.15) 50%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
+  inset: -3px;
+  border-radius: 14px;
+  z-index: -1;
+  background-color: #2563eb;
+  animation: btnPulse 2s ease-in-out infinite;
   pointer-events: none;
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity 0.35s ease;
+}
+.btn-glow:hover {
+  transform: scale(1.04);
+}
+@keyframes btnShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes btnPulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.06); }
 }
 
-.btn-shimmer-hover:hover::before {
-  opacity: 1;
-  animation: shimmerMove 1.5s ease-in-out infinite;
-}
-
-/* Scale on hover — tombol sedikit membesar */
-.btn-scale {
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.2s ease;
-}
-
-.btn-scale:hover {
-  transform: scale(1.05);
+/* fadeIn — dipakai animasi dropdown header */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Shipment Route (garis halus + glow mengalir dari asal → PP) ── */
@@ -226,4 +177,20 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background-color: #9ca3af;
+}
+
+/* Scrollbar tipis opsional (gaya dd-pocket) */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }

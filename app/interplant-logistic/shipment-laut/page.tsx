@@ -807,10 +807,10 @@ export default function InterplantLogisticShipmentLautPage() {
         <div className="card-body p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Packing Plant</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Total Muatan (ton)</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Jumlah Trip</th>
+              <tr className="bg-gray-200 border-b-2 border-gray-400">
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Packing Plant</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Total Muatan (ton)</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">Jumlah Trip</th>
               </tr>
             </thead>
             <tbody>

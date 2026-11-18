@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useState } from "react";
+import SearchInput from "./SearchInput";
 
 interface Column<T> {
   key: string;
@@ -108,12 +109,10 @@ export default function DataTable<T>({
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
             {searchable && (
-              <input
-                type="text"
+              <SearchInput
                 placeholder={searchPlaceholder}
                 value={search}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs sm:text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                onChange={handleSearch}
               />
             )}
             {actions}

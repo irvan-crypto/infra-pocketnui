@@ -1,5 +1,5 @@
 import PlaceholderPage from "@/components/PlaceholderPage";
 
 export default function Page() {
-  return <PlaceholderPage title="Packing Plant 2" />;
+  return <PlaceholderPage title="Silo Pantai" />;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ShipmentMap from "@/components/dashboard/ShipmentMap";
 import DataTable from "@/components/ui/DataTable";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { SHIP_STATUS_ORDER, SHIP_STATUS_LABELS, type ShipStatusKey } from "@/lib/app-config";
 import { formatDateIndonesian } from "@/lib/utils";
@@ -63,6 +64,7 @@ function getLatestStatusTimestamp(shipment: Shipment): number {
 export default function ShipmentLautPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   const supabase = createClient();
 
@@ -79,19 +81,31 @@ export default function ShipmentLautPage() {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Supabase error:", error);
+        // Error PostgREST adalah plain object (bukan Error), jadi log manual
+        // agar code/message/details/hint terlihat di console (bukan {}).
+        console.error(
+          "Supabase error:",
+          JSON.stringify(
+            { code: error.code, message: error.message, details: error.details, hint: error.hint },
+            null,
+            2
+          )
+        );
         throw error;
       }
 
       const list = (data || []) as Shipment[];
       if (list.length === 0) {
-        throw new Error(
+        console.warn(
           'Supabase mengembalikan 0 baris. Kemungkinan RLS memblokir akses anon key (jalankan supabase-fix-rls.sql).'
         );
       }
       setShipments(list);
     } catch (error) {
-      console.error("Error fetching shipments:", error);
+      console.error(
+        "Error fetching shipments:",
+        error instanceof Error ? error.message : JSON.stringify(error, null, 2)
+      );
       if (shipments.length === 0) {
         const mockShipments: Shipment[] = [
           {
@@ -208,7 +222,7 @@ export default function ShipmentLautPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-primary-600 border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
           <p className="text-sm text-gray-500">Memuat data kapal...</p>
         </div>
       </div>
@@ -283,10 +297,32 @@ export default function ShipmentLautPage() {
         </div>
       </div>
 
-      <div className="w-full flex flex-col">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Peta Monitoring Kapal</h1>
-        <div className="h-[600px] w-full">
-          <ShipmentMap shipments={mapShipments} />
+      <div className="w-full flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Peta Monitoring Kapal</h1>
+          {isFullScreen && (
+            <button
+              type="button"
+              onClick={() => setIsFullScreen(false)}
+              className="fixed top-4 right-4 z-[1000] flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-lg"
+            >
+              <Minimize2 className="w-4 h-4" />
+              <span>Kembali</span>
+            </button>
+          )}
+          {!isFullScreen && (
+            <button
+              type="button"
+              onClick={() => setIsFullScreen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Maximize2 className="w-4 h-4" />
+              <span>Full Screen</span>
+            </button>
+          )}
+        </div>
+        <div className={isFullScreen ? "fixed inset-0 z-[100] bg-white rounded-none border-0 shadow-none h-screen w-full" : "h-[600px] w-full rounded-xl border border-gray-200 shadow-sm relative"}>
+          <ShipmentMap shipments={mapShipments} fullScreen={isFullScreen} />
         </div>
       </div>
 
