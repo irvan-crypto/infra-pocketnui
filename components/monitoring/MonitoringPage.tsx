@@ -351,8 +351,14 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
     <div className="max-w-full mx-auto">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{config.title}</h1>
-          {config.subtitle && <p className="text-sm text-gray-500 mt-0.5">{config.subtitle}</p>}
+          <h1 className="text-2xl font-bold text-gray-900">
+            {config.heading ?? config.title}
+          </h1>
+          {(config.pageSubtitle ?? config.subtitle) && (
+            <p className="text-sm text-gray-500 mt-0.5">
+              {config.pageSubtitle ?? config.subtitle}
+            </p>
+          )}
         </div>
       </div>
 

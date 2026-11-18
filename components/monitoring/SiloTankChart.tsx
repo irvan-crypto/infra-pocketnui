@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  formatMonitoringNumber,
-  formatTanggalPanjang,
-} from "@/lib/monitoring-config";
+import { formatMonitoringNumber } from "@/lib/monitoring-config";
 
 type Row = Record<string, any>;
 
@@ -248,25 +245,17 @@ export default function SiloTankChart({
 
   return (
     <div className="mb-6">
-      <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Kondisi Stok Silo</h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Update Data terbaru per {formatTanggalPanjang(latest.tanggal)}
-          </p>
-        </div>
-        {/* Legenda */}
-        <div className="flex items-center gap-4 text-xs text-gray-500">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-green-500 inline-block" /> Stok
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-gray-900 inline-block" /> Deadstok
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-200 inline-block" /> Kapasitas
-          </span>
-        </div>
+      {/* Legenda */}
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-4 text-xs text-gray-500">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-green-500 inline-block" /> Stok
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-gray-900 inline-block" /> Deadstok
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-200 inline-block" /> Kapasitas
+        </span>
       </div>
 
       <div

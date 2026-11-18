@@ -18,7 +18,9 @@ export interface MonitoringTableConfig {
   slug: string; // segmen URL: /monitoring/<slug>
   table: string; // nama tabel Supabase
   title: string;
+  heading?: string; // judul H1 halaman (fallback: title)
   subtitle?: string;
+  pageSubtitle?: string; // subjudul H1 halaman (fallback: subtitle)
   uniquePerDate: boolean; // hanya 1 baris per tanggal
   uniqueBy?: string; // keunikan = tanggal + field ini (mis. nama_expeditur)
   fields: MonitoringField[];
@@ -63,7 +65,9 @@ export const MONITORING_CONFIGS: MonitoringTableConfig[] = [
     slug: "silo-semen",
     table: "silo_semen",
     title: "Silo Semen",
+    heading: "MONITORING SILO SEMEN",
     subtitle: "Stok harian per silo (ton)",
+    pageSubtitle: "Update Data terbaru per 17 Nov 2026",
     uniquePerDate: true,
     chart: {
       groups: [[21, 22, 23, 24], [41, 42, 43], [51, 52, 53]],
