@@ -1,5 +1,5 @@
-// Infra-Pocket Service Worker
-const CACHE_NAME = "infra-pocket-v2";
+// SINCOS Service Worker
+const CACHE_NAME = "sincos-v3";
 
 // Aset statis yang di-cache saat install
 const PRECACHE_URLS = [
@@ -35,7 +35,7 @@ self.addEventListener("activate", (event) => {
 // ──────────────────────────────────────────────
 self.addEventListener("push", (event) => {
   let data = {
-    title: "Infra Pocket",
+    title: "SINCOS",
     body: "Ada pembaruan terbaru",
     icon: "/logo.png",
     badge: "/icons/logo192.png",

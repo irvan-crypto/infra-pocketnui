@@ -225,7 +225,7 @@ export default function LoginScreen() {
                 className="w-full py-2.5 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl font-medium text-sm hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 flex items-center justify-center gap-2 group disabled:opacity-60"
               >
                 <Smartphone size={16} className="group-hover:animate-bounce" />
-                {installing ? "Memproses..." : "Install Infra Pocket"}
+                {installing ? "Memproses..." : "Install SINCOS"}
               </button>
 
               {showInstallHelp && (
