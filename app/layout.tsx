@@ -40,6 +40,27 @@ export default function RootLayout({
     <html lang="id">
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
+        {/* Tangkap event install sebelum React hydrate agar prompt tidak hilang */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                window.__deferredInstallPrompt = null;
+                window.__pwaInstalled = false;
+                window.addEventListener('beforeinstallprompt', function (e) {
+                  e.preventDefault();
+                  window.__deferredInstallPrompt = e;
+                  window.dispatchEvent(new Event('pwa-installable'));
+                });
+                window.addEventListener('appinstalled', function () {
+                  window.__pwaInstalled = true;
+                  window.__deferredInstallPrompt = null;
+                  window.dispatchEvent(new Event('pwa-installed'));
+                });
+              })();
+            `,
+          }}
+        />
       </head>
       <body className={inter.className}>
         <PwaSetup />

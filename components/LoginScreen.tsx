@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, AlertCircle, Smartphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,69 +20,91 @@ export default function LoginScreen() {
   // PWA install
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const [installHint, setInstallHint] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
-  const installHelpRef = useRef<HTMLDivElement>(null);
 
   const isStandalone = () =>
     typeof window !== "undefined" &&
     (window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true);
 
+  const isIOS = () => {
+    if (typeof navigator === "undefined") return false;
+    return (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1)
+    );
+  };
+
   useEffect(() => {
-    if (isStandalone()) {
+    const w = window as any;
+
+    if (isStandalone() || w.__pwaInstalled) {
       setIsInstalled(true);
       return;
     }
 
+    // Event mungkin sudah tertangkap script di <head> sebelum hydrate
+    if (w.__deferredInstallPrompt) setDeferredPrompt(w.__deferredInstallPrompt);
+
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
+      w.__deferredInstallPrompt = e;
       setDeferredPrompt(e);
+    };
+    const onInstallable = () => {
+      if (w.__deferredInstallPrompt) setDeferredPrompt(w.__deferredInstallPrompt);
     };
     const onInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
-      setShowInstallHelp(false);
+      setInstallHint(null);
     };
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("pwa-installable", onInstallable);
     window.addEventListener("appinstalled", onInstalled);
-
-    // Daftarkan service worker lebih awal agar app memenuhi syarat installable
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .catch((err) => console.warn("Service worker gagal didaftarkan:", err));
-    }
+    window.addEventListener("pwa-installed", onInstalled);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("pwa-installable", onInstallable);
       window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("pwa-installed", onInstalled);
     };
   }, []);
 
   const handleInstall = async () => {
-    if (isStandalone()) {
+    const w = window as any;
+
+    if (isStandalone() || w.__pwaInstalled) {
       setIsInstalled(true);
       return;
     }
 
-    if (!deferredPrompt) {
-      // Browser belum memberi event beforeinstallprompt (iOS / belum memenuhi syarat)
-      setShowInstallHelp(true);
+    const prompt = deferredPrompt || w.__deferredInstallPrompt;
+
+    // Tanpa prompt dari browser, install programatik tidak mungkin dilakukan
+    if (!prompt) {
+      setInstallHint(
+        isIOS()
+          ? "iPhone/iPad belum mengizinkan install otomatis. Ketuk Bagikan (⬆️) → “Tambahkan ke Layar Utama” sekali saja."
+          : "Browser ini belum mengizinkan install otomatis. Pastikan dibuka lewat HTTPS di Chrome/Edge (Android/desktop), lalu coba lagi."
+      );
       return;
     }
 
+    setInstallHint(null);
     setInstalling(true);
     try {
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice?.outcome === "accepted") {
-        setIsInstalled(true);
-      }
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      if (choice?.outcome === "accepted") setIsInstalled(true);
+      // Prompt hanya bisa dipakai sekali
+      w.__deferredInstallPrompt = null;
       setDeferredPrompt(null);
     } catch {
-      setShowInstallHelp(true);
+      setInstallHint("Install dibatalkan atau tidak didukung browser ini. Coba lagi setelah halaman dimuat ulang.");
     } finally {
       setInstalling(false);
     }
@@ -228,34 +250,10 @@ export default function LoginScreen() {
                 {installing ? "Memproses..." : "Install SINCOS"}
               </button>
 
-              {showInstallHelp && (
-                <div
-                  ref={installHelpRef}
-                  className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-[11px] sm:text-xs text-blue-900 leading-relaxed"
-                >
-                  <p className="font-semibold mb-1">Cara install manual:</p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    <li>
-                      <b>Android (Chrome)</b>: menu ⋮ → &quot;Tambahkan ke layar utama&quot; / &quot;Instal aplikasi&quot;.
-                    </li>
-                    <li>
-                      <b>iPhone/iPad (Safari)</b>: tombol Bagikan ⬆️ → &quot;Tambahkan ke Layar Utama&quot;.
-                    </li>
-                    <li>
-                      <b>Desktop (Chrome/Edge)</b>: ikon instal di kanan address bar.
-                    </li>
-                    <li>
-                      Pastikan dibuka via <b>https</b> (atau localhost), bukan http.
-                    </li>
-                  </ul>
-                  <button
-                    type="button"
-                    onClick={() => setShowInstallHelp(false)}
-                    className="mt-2 font-semibold text-blue-700 hover:underline"
-                  >
-                    Tutup
-                  </button>
-                </div>
+              {installHint && (
+                <p className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] sm:text-xs text-blue-900 leading-relaxed">
+                  {installHint}
+                </p>
               )}
             </div>
           )}

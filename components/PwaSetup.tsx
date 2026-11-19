@@ -17,13 +17,10 @@ export default function PwaSetup() {
         .catch((err) => console.warn("[PWA] Service worker gagal didaftarkan:", err));
     };
 
-    if (document.readyState === "complete") {
-      register();
-    } else {
-      window.addEventListener("load", register, { once: true });
-    }
+    // Daftarkan segera (bukan menunggu event load) agar kriteria installable cepat terpenuhi
+    register();
 
-    return () => window.removeEventListener("load", register);
+    return () => {};
   }, []);
 
   return null;
