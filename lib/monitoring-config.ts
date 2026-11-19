@@ -9,6 +9,7 @@ export interface MonitoringField {
   shortLabel?: string; // header kolom tabel (fallback: label)
   type: "number" | "text";
   group?: string; // pengelompokan di form (mis. "OPC", "PCC")
+  subGroup?: string; // sub-grup header tabel (mis. "Rilis Semen Curah OPC")
   generated?: boolean; // generated column — dihitung database, tidak diisi manual
   integer?: boolean; // tampil tanpa desimal (retase, armada)
   required?: boolean;
@@ -128,20 +129,20 @@ export const MONITORING_CONFIGS: MonitoringTableConfig[] = [
     uniquePerDate: true,
     fields: [
       { key: "prod_fmopc", label: "Produksi FM (OPC)", shortLabel: "Prod. FM", type: "number", group: "OPC" },
-      { key: "rilis_spantaiopc", label: "Rilis Silo Pantai (OPC)", shortLabel: "R. Silo Pantai", type: "number", group: "OPC" },
-      { key: "rilis_sminiopc", label: "Rilis Silo Mini (OPC)", shortLabel: "R. Silo Mini", type: "number", group: "OPC" },
-      { key: "rilis_curah_fotopc", label: "Rilis Curah FOTO (OPC)", shortLabel: "R. Curah FOTO", type: "number", group: "OPC" },
-      { key: "rilis_jumbo_fobopc", label: "Rilis Jumbo FOB (OPC)", shortLabel: "R. Jumbo FOB", type: "number", group: "OPC" },
-      { key: "rilis_jumbo_fotopc", label: "Rilis Jumbo FOTO (OPC)", shortLabel: "R. Jumbo FOTO", type: "number", group: "OPC" },
+      { key: "rilis_spantaiopc", label: "Rilis Silo Pantai (OPC)", shortLabel: "Silo Pantai", type: "number", group: "OPC", subGroup: "Rilis Semen Curah OPC" },
+      { key: "rilis_sminiopc", label: "Rilis Silo Mini (OPC)", shortLabel: "Silo Mini", type: "number", group: "OPC", subGroup: "Rilis Semen Curah OPC" },
+      { key: "rilis_curah_fotopc", label: "Rilis Curah FOT (OPC)", shortLabel: "Curah FOT", type: "number", group: "OPC", subGroup: "Rilis Semen Curah OPC" },
+      { key: "rilis_jumbo_fobopc", label: "Rilis Jumbo FOB (OPC)", shortLabel: "Jumbo FOB", type: "number", group: "OPC", subGroup: "Rilis Jumbo Curah OPC" },
+      { key: "rilis_jumbo_fotopc", label: "Rilis Jumbo FOT (OPC)", shortLabel: "Jumbo FOT", type: "number", group: "OPC", subGroup: "Rilis Jumbo Curah OPC" },
       { key: "total_rilisopc", label: "Total Rilis (OPC)", shortLabel: "Total Rilis", type: "number", group: "OPC", generated: true },
       { key: "prod_fmpcc", label: "Produksi FM (PCC)", shortLabel: "Prod. FM", type: "number", group: "PCC" },
-      { key: "rilis_spantaipcc", label: "Rilis Silo Pantai (PCC)", shortLabel: "R. Silo Pantai", type: "number", group: "PCC" },
-      { key: "rilis_curah_fotpcc", label: "Rilis Curah FOTO (PCC)", shortLabel: "R. Curah FOTO", type: "number", group: "PCC" },
-      { key: "rilis_ppmkspcc", label: "Rilis PPMKS (PCC)", shortLabel: "R. PPMKS", type: "number", group: "PCC" },
-      { key: "rilis_packerpcc", label: "Rilis Packer (PCC)", shortLabel: "R. Packer", type: "number", group: "PCC" },
-      { key: "rilis_polyslingpcc", label: "Rilis Polysling (PCC)", shortLabel: "R. Polysling", type: "number", group: "PCC" },
-      { key: "rilis_jumbo_fobpcc", label: "Rilis Jumbo FOB (PCC)", shortLabel: "R. Jumbo FOB", type: "number", group: "PCC" },
-      { key: "rilis_jumbo_fotpcc", label: "Rilis Jumbo FOTO (PCC)", shortLabel: "R. Jumbo FOTO", type: "number", group: "PCC" },
+      { key: "rilis_spantaipcc", label: "Rilis Silo Pantai (PCC)", shortLabel: "Silo Pantai", type: "number", group: "PCC", subGroup: "Rilis Semen Curah PCC" },
+      { key: "rilis_curah_fotpcc", label: "Rilis Curah FOT (PCC)", shortLabel: "Curah FOT", type: "number", group: "PCC", subGroup: "Rilis Semen Curah PCC" },
+      { key: "rilis_ppmkspcc", label: "Rilis PPMKS (PCC)", shortLabel: "PPMKS", type: "number", group: "PCC", subGroup: "Rilis Semen Curah PCC" },
+      { key: "rilis_packerpcc", label: "Rilis Packer (PCC)", shortLabel: "Packer", type: "number", group: "PCC", subGroup: "Rilis Packer PCC" },
+      { key: "rilis_polyslingpcc", label: "Rilis Polysling (PCC)", shortLabel: "Polysling", type: "number", group: "PCC", subGroup: "Rilis Packer PCC" },
+      { key: "rilis_jumbo_fobpcc", label: "Rilis Jumbo FOB (PCC)", shortLabel: "Jumbo FOB", type: "number", group: "PCC", subGroup: "Rilis Jumbo Curah PCC" },
+      { key: "rilis_jumbo_fotpcc", label: "Rilis Jumbo FOT (PCC)", shortLabel: "Jumbo FOT", type: "number", group: "PCC", subGroup: "Rilis Jumbo Curah PCC" },
       { key: "total_rilispcc", label: "Total Rilis (PCC)", shortLabel: "Total Rilis", type: "number", group: "PCC", generated: true },
     ],
   },
@@ -153,15 +154,15 @@ export const MONITORING_CONFIGS: MonitoringTableConfig[] = [
     uniquePerDate: true,
     fields: [
       { key: "masukopc", label: "Masuk (OPC)", shortLabel: "Masuk", type: "number", group: "OPC" },
-      { key: "rilis_jumboopc", label: "Rilis Jumbo (OPC)", shortLabel: "R. Jumbo", type: "number", group: "OPC" },
-      { key: "rilis_packeropc", label: "Rilis Packer (OPC)", shortLabel: "R. Packer", type: "number", group: "OPC" },
-      { key: "rilis_outletppopc", label: "Rilis Outlet PP (OPC)", shortLabel: "R. Outlet PP", type: "number", group: "OPC" },
+      { key: "rilis_jumboopc", label: "Rilis Jumbo (OPC)", shortLabel: "Jumbo", type: "number", group: "OPC" },
+      { key: "rilis_packeropc", label: "Rilis Packer (OPC)", shortLabel: "Packer", type: "number", group: "OPC" },
+      { key: "rilis_outletppopc", label: "Rilis Outlet PP (OPC)", shortLabel: "Outlet PP", type: "number", group: "OPC" },
       { key: "total_rilisopc", label: "Total Rilis (OPC)", shortLabel: "Total Rilis", type: "number", group: "OPC", generated: true },
       { key: "stok_opc", label: "Stok (OPC)", shortLabel: "Stok", type: "number", group: "OPC" },
       { key: "masukpcc", label: "Masuk (PCC)", shortLabel: "Masuk", type: "number", group: "PCC" },
-      { key: "rilis_jumbopcc", label: "Rilis Jumbo (PCC)", shortLabel: "R. Jumbo", type: "number", group: "PCC" },
-      { key: "rilis_packerpcc", label: "Rilis Packer (PCC)", shortLabel: "R. Packer", type: "number", group: "PCC" },
-      { key: "rilis_outletpppcc", label: "Rilis Outlet PP (PCC)", shortLabel: "R. Outlet PP", type: "number", group: "PCC" },
+      { key: "rilis_jumbopcc", label: "Rilis Jumbo (PCC)", shortLabel: "Jumbo", type: "number", group: "PCC" },
+      { key: "rilis_packerpcc", label: "Rilis Packer (PCC)", shortLabel: "Packer", type: "number", group: "PCC" },
+      { key: "rilis_outletpppcc", label: "Rilis Outlet PP (PCC)", shortLabel: "Outlet PP", type: "number", group: "PCC" },
       { key: "total_rilispcc", label: "Total Rilis (PCC)", shortLabel: "Total Rilis", type: "number", group: "PCC", generated: true },
       { key: "stok_pcc", label: "Stok (PCC)", shortLabel: "Stok", type: "number", group: "PCC" },
     ],
@@ -174,7 +175,7 @@ export const MONITORING_CONFIGS: MonitoringTableConfig[] = [
     uniquePerDate: true,
     fields: [
       { key: "masukopc", label: "Masuk (OPC)", shortLabel: "Masuk", type: "number" },
-      { key: "rilis_jumboopc", label: "Rilis Jumbo (OPC)", shortLabel: "R. Jumbo", type: "number" },
+      { key: "rilis_jumboopc", label: "Rilis Jumbo (OPC)", shortLabel: "Jumbo", type: "number" },
       { key: "stok_opc", label: "Stok (OPC)", shortLabel: "Stok", type: "number" },
     ],
   },

@@ -46,7 +46,6 @@ export const MENU: MenuItem[] = [
       { title: "Silo Pantai", href: "/monitoring/silo-pantai" },
       { title: "CP Tonasa", href: "/monitoring/cp-tonasa" },
       { title: "Silo Mini", href: "/monitoring/silo-mini" },
-      { title: "Silo Pantai", href: "/silo-semen/silo-pantai" },
     ],
   },
   {

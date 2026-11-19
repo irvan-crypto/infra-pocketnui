@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, AlertCircle, Smartphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,77 @@ export default function LoginScreen() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // PWA install
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const installHelpRef = useRef<HTMLDivElement>(null);
+
+  const isStandalone = () =>
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true);
+
+  useEffect(() => {
+    if (isStandalone()) {
+      setIsInstalled(true);
+      return;
+    }
+
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    const onInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      setShowInstallHelp(false);
+    };
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onInstalled);
+
+    // Daftarkan service worker lebih awal agar app memenuhi syarat installable
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .catch((err) => console.warn("Service worker gagal didaftarkan:", err));
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (isStandalone()) {
+      setIsInstalled(true);
+      return;
+    }
+
+    if (!deferredPrompt) {
+      // Browser belum memberi event beforeinstallprompt (iOS / belum memenuhi syarat)
+      setShowInstallHelp(true);
+      return;
+    }
+
+    setInstalling(true);
+    try {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice?.outcome === "accepted") {
+        setIsInstalled(true);
+      }
+      setDeferredPrompt(null);
+    } catch {
+      setShowInstallHelp(true);
+    } finally {
+      setInstalling(false);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,8 +133,8 @@ export default function LoginScreen() {
             <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mx-auto mb-3 sm:mb-4 overflow-hidden">
               <img src={`/logo.png?v=${APP_VERSION}`} alt="Logo" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Monitoring Shipment</h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">PT. Semen Tonasa / SBI</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">INFRASTRUCTURE</h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">Smart Infrastructure Digital Ecosystem</p>
           </div>
 
           {/* Error */}
@@ -145,26 +216,49 @@ export default function LoginScreen() {
           </form>
 
           {/* PWA Install */}
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                if ("serviceWorker" in navigator) {
-                  navigator.serviceWorker.register("/sw.js").then(() => {
-                    alert('Aplikasi siap diinstall! Gunakan menu "Install" di browser Anda.');
-                  }).catch(() => {
-                    alert("Gagal registrasi service worker.");
-                  });
-                } else {
-                  alert("Browser Anda tidak mendukung installasi PWA.");
-                }
-              }}
-              className="w-full py-2.5 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl font-medium text-sm hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 flex items-center justify-center gap-2 group"
-            >
-              <Smartphone size={16} className="group-hover:animate-bounce" />
-              Install Infra Pocket
-            </button>
-          </div>
+          {!isInstalled && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={handleInstall}
+                disabled={installing}
+                className="w-full py-2.5 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl font-medium text-sm hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 flex items-center justify-center gap-2 group disabled:opacity-60"
+              >
+                <Smartphone size={16} className="group-hover:animate-bounce" />
+                {installing ? "Memproses..." : "Install Infra Pocket"}
+              </button>
+
+              {showInstallHelp && (
+                <div
+                  ref={installHelpRef}
+                  className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-[11px] sm:text-xs text-blue-900 leading-relaxed"
+                >
+                  <p className="font-semibold mb-1">Cara install manual:</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>
+                      <b>Android (Chrome)</b>: menu ⋮ → &quot;Tambahkan ke layar utama&quot; / &quot;Instal aplikasi&quot;.
+                    </li>
+                    <li>
+                      <b>iPhone/iPad (Safari)</b>: tombol Bagikan ⬆️ → &quot;Tambahkan ke Layar Utama&quot;.
+                    </li>
+                    <li>
+                      <b>Desktop (Chrome/Edge)</b>: ikon instal di kanan address bar.
+                    </li>
+                    <li>
+                      Pastikan dibuka via <b>https</b> (atau localhost), bukan http.
+                    </li>
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => setShowInstallHelp(false)}
+                    className="mt-2 font-semibold text-blue-700 hover:underline"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <p className="text-center text-[11px] text-gray-400 mt-4">&copy; 2026 Dept. of Infrastructure — design by NUI6184</p>
         </div>

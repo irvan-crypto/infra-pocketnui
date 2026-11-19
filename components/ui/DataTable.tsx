@@ -11,6 +11,8 @@ interface Column<T> {
   hideOnMobile?: boolean;
   /** Label grup header (mis. "TONASA 2/3"). Kolom bergrup berurutan digabung jadi 1 sel header. */
   group?: string;
+  /** Label sub-grup header (baris ke-2). Kolom bersub-grup berurutan digabung jadi 1 sel header. */
+  subGroup?: string;
 }
 
 interface Props<T> {
@@ -57,26 +59,31 @@ export default function DataTable<T>({
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // ── Grouped header ───────────────────────────────────────────
-  const hasGroups = columns.some((col) => !!col.group);
-  const groupHeaderCells: {
+  // ── Grouped header (1, 2, atau 3 baris) ──────────────────────
+  interface HeaderCell {
     key: string;
     label: string;
     colSpan?: number;
     rowSpan?: number;
     hideOnMobile?: boolean;
     className?: string;
-    divider?: boolean;
-  }[] = [];
+    center?: boolean;
+  }
 
+  const hasGroups = columns.some((col) => !!col.group);
+  const hasSubGroups = columns.some((col) => !!col.subGroup);
+  const headerRowCount = hasSubGroups ? 3 : hasGroups ? 2 : 1;
+
+  /** Baris 1: grup teratas (colspan) + kolom tanpa grup (rowspan penuh) */
+  const topCells: HeaderCell[] = [];
   for (let i = 0; i < columns.length; i += 1) {
     const col = columns[i];
 
     if (!col.group) {
-      groupHeaderCells.push({
+      topCells.push({
         key: col.key,
         label: String(col.header),
-        rowSpan: 2,
+        rowSpan: headerRowCount,
         hideOnMobile: col.hideOnMobile,
         className: col.className,
       });
@@ -88,16 +95,82 @@ export default function DataTable<T>({
     while (end + 1 < columns.length && columns[end + 1].group === col.group) end += 1;
     const run = columns.slice(i, end + 1);
 
-    groupHeaderCells.push({
+    topCells.push({
       key: `group-${col.group}-${i}`,
       label: col.group,
       colSpan: run.length,
       hideOnMobile: run.every((c) => c.hideOnMobile),
-      divider: i > 0, // garis pemisah antar grup
+      center: true,
     });
 
     i = end;
   }
+
+  /** Baris 2: sub-grup (colspan) atau nama kolom bila tanpa sub-grup */
+  const midCells: HeaderCell[] = [];
+  for (let i = 0; i < columns.length; i += 1) {
+    const col = columns[i];
+    if (!col.group) continue; // kolom tanpa grup sudah rowSpan di baris 1
+
+    // Tanpa sub-grup: jadi kolom mandiri (rowspan 2 saat header 3 baris)
+    if (!hasSubGroups || !col.subGroup) {
+      midCells.push({
+        key: `mid-${col.key}`,
+        label: String(col.header),
+        rowSpan: hasSubGroups ? 2 : undefined,
+        hideOnMobile: col.hideOnMobile,
+        className: col.className,
+      });
+      continue;
+    }
+
+    let end = i;
+    while (
+      end + 1 < columns.length &&
+      columns[end + 1].group === col.group &&
+      columns[end + 1].subGroup === col.subGroup
+    ) {
+      end += 1;
+    }
+    const run = columns.slice(i, end + 1);
+
+    midCells.push({
+      key: `sub-${col.subGroup}-${i}`,
+      label: col.subGroup,
+      colSpan: run.length,
+      hideOnMobile: run.every((c) => c.hideOnMobile),
+      center: true,
+    });
+
+    i = end;
+  }
+
+  /** Baris 3: nama kolom untuk kolom yang punya sub-grup */
+  const leafCells: HeaderCell[] = [];
+  columns.forEach((col) => {
+    if (!col.group || !col.subGroup) return;
+    leafCells.push({
+      key: `leaf-${col.key}`,
+      label: String(col.header),
+      hideOnMobile: col.hideOnMobile,
+      className: col.className,
+    });
+  });
+
+  const renderHeaderCell = (cell: HeaderCell) => (
+    <th
+      key={cell.key}
+      colSpan={cell.colSpan}
+      rowSpan={cell.rowSpan}
+      className={`px-3 sm:px-4 lg:px-5 py-2 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap
+        border border-gray-300
+        ${cell.center ? "text-center" : "text-left"}
+        ${cell.hideOnMobile ? "hidden lg:table-cell" : ""}
+        ${cell.className || ""}`}
+    >
+      {cell.label}
+    </th>
+  );
 
   const filtered = search
     ? data.filter((item) =>
@@ -170,48 +243,23 @@ export default function DataTable<T>({
           <thead>
             {hasGroups ? (
               <>
-                {/* Baris 1: grup kolom (colspan) + kolom tanpa grup (rowspan 2) */}
+                {/* Baris 1: grup kolom (colspan) + kolom tanpa grup (rowspan penuh) */}
+                <tr className="bg-gray-200">{topCells.map(renderHeaderCell)}</tr>
+                {/* Baris 2: sub-grup (colspan) atau nama kolom bergrup */}
                 <tr className="bg-gray-200">
-                  {groupHeaderCells.map((cell) => (
-                    <th
-                      key={cell.key}
-                      colSpan={cell.colSpan}
-                      rowSpan={cell.rowSpan}
-                      className={`px-3 sm:px-4 lg:px-5 py-2 text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap border-b border-gray-300
-                        ${cell.colSpan && cell.colSpan > 1 ? "text-center" : "text-left"}
-                        ${cell.hideOnMobile ? "hidden lg:table-cell" : ""}
-                        ${cell.divider ? "border-l-2 border-gray-400" : ""}
-                        ${cell.className || ""}`}
-                    >
-                      {cell.label}
-                    </th>
-                  ))}
+                  {midCells.map(renderHeaderCell)}
                 </tr>
-                {/* Baris 2: sub-header kolom bergrup */}
-                <tr className="bg-gray-200 border-b-2 border-gray-400">
-                  {columns.map((col, idx) => {
-                    if (!col.group) return null;
-                    const runStart = idx === 0 || columns[idx - 1]?.group !== col.group;
-                    return (
-                      <th
-                        key={col.key}
-                        className={`px-3 sm:px-4 lg:px-5 py-2 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap
-                          ${runStart ? "border-l-2 border-gray-400" : ""}
-                          ${col.hideOnMobile ? "hidden lg:table-cell" : ""}
-                          ${col.className || ""}`}
-                      >
-                        {col.header}
-                      </th>
-                    );
-                  })}
-                </tr>
+                {/* Baris 3: nama kolom di dalam sub-grup */}
+                {headerRowCount === 3 && (
+                  <tr className="bg-gray-200">{leafCells.map(renderHeaderCell)}</tr>
+                )}
               </>
             ) : (
-              <tr className="bg-gray-200 border-b-2 border-gray-400">
+              <tr className="bg-gray-200">
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-3 sm:px-4 lg:px-5 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap
+                    className={`px-3 sm:px-4 lg:px-5 py-3 text-left text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap border border-gray-300
                       ${col.hideOnMobile ? "hidden lg:table-cell" : ""}
                       ${col.className || ""}`}
                   >

@@ -7,6 +7,7 @@ import { getPermissions, canEditMonitoringPage } from "@/lib/access";
 import DataTable from "@/components/ui/DataTable";
 import SiloTankChart from "@/components/monitoring/SiloTankChart";
 import ExpediturSummaryCards from "@/components/monitoring/ExpediturSummaryCards";
+import GroupedSummaryCards from "@/components/monitoring/GroupedSummaryCards";
 import {
   formatMonitoringNumber,
   formatTanggalPanjang,
@@ -292,6 +293,12 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
     return map;
   }, [config]);
 
+  // Tabel dengan sub-grup header memakai field.group sebagai grup baris atas
+  const useFieldGroups = useMemo(
+    () => config.fields.some((f) => !!f.subGroup),
+    [config]
+  );
+
   const columns = useMemo(
     () => [
       {
@@ -302,7 +309,8 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
       ...config.fields.map((f) => ({
         key: f.key,
         header: f.shortLabel || f.label,
-        group: fieldGroups[f.key],
+        group: fieldGroups[f.key] ?? (useFieldGroups ? f.group : undefined),
+        subGroup: useFieldGroups ? f.subGroup : undefined,
         className: f.type === "number" ? "text-right" : "text-left",
         render: (r: Row) =>
           f.type === "number" ? (
@@ -481,6 +489,11 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
           </div>
           <ExpediturSummaryCards />
         </div>
+      )}
+
+      {/* Ringkasan grid card dari data tabel (mis. CP Tonasa: OPC & PCC) */}
+      {config.slug === "cp-tonasa" && rows.length > 0 && (
+        <GroupedSummaryCards config={config} rows={rows} />
       )}
 
       {/* Tabel data */}

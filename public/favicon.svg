@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="ribbon" x1="0.12" y1="0.08" x2="0.88" y2="0.92">
+      <stop offset="0" stop-color="#06245F"/>
+      <stop offset="0.34" stop-color="#0754D8"/>
+      <stop offset="0.68" stop-color="#087CF4"/>
+      <stop offset="1" stop-color="#12D9E8"/>
+    </linearGradient>
+    <linearGradient id="ribbonLight" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#0751C8"/>
+      <stop offset="0.55" stop-color="#078BFA"/>
+      <stop offset="1" stop-color="#08DDEB"/>
+    </linearGradient>
+    <linearGradient id="orbit" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#08D5E8"/>
+      <stop offset="0.48" stop-color="#0878F4"/>
+      <stop offset="1" stop-color="#073EAA"/>
+    </linearGradient>
+  </defs>
+  <!-- Rear orbital sweep -->
+  <path d="M470 280 C620 150 804 93 913 151 C1000 197 955 329 850 414
+           C921 310 933 220 862 194 C765 157 615 205 470 280Z"
+        fill="url(#orbit)"/>
+  <!-- Main folded N ribbon -->
+  <path d="M205 330
+           C205 270 246 230 307 230
+           L397 230
+           C431 230 459 243 485 267
+           L785 552
+           L785 735
+           L699 735
+           C662 735 633 722 606 697
+           L339 444
+           L339 735
+           L205 735Z"
+        fill="url(#ribbon)"/>
+  <!-- Right upright / inner folded face -->
+  <path d="M684 230 L819 230 L819 610 L684 482Z" fill="url(#ribbonLight)"/>
+  <!-- Dark underside gives the folded ribbon depth -->
+  <path d="M205 330 C205 270 246 230 307 230 L397 230
+           C431 230 459 243 485 267 L555 333
+           C506 300 466 291 425 291 L310 291
+           C270 291 245 314 245 353 L245 735 L205 735Z"
+        fill="#061D56" opacity=".78"/>
+  <!-- Front diagonal face -->
+  <path d="M339 444 L606 697 C633 722 662 735 699 735
+           L785 735 L785 552 L485 267
+           C459 243 431 230 397 230 L307 230
+           C282 230 262 238 245 253
+           C279 244 310 256 339 282Z"
+        fill="url(#ribbonLight)" opacity=".96"/>
+  <!-- Foreground orbital sweep -->
+  <path d="M551 694 C407 811 222 864 115 809
+           C39 769 65 668 174 576
+           C102 663 99 741 166 769
+           C259 809 415 768 551 694Z"
+        fill="url(#orbit)"/>
+</svg>

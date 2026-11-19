@@ -1,5 +1,5 @@
 // Infra-Pocket Service Worker
-const CACHE_NAME = "infra-pocket-v1";
+const CACHE_NAME = "infra-pocket-v2";
 
 // Aset statis yang di-cache saat install
 const PRECACHE_URLS = [
@@ -38,7 +38,7 @@ self.addEventListener("push", (event) => {
     title: "Infra Pocket",
     body: "Ada pembaruan terbaru",
     icon: "/logo.png",
-    badge: "/icons/icon-192x192.png",
+    badge: "/icons/logo192.png",
   };
 
   if (event.data) {
@@ -54,7 +54,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: data.icon || "/logo.png",
-      badge: data.badge || "/icons/icon-192x192.png",
+      badge: data.badge || "/icons/logo192.png",
       tag: data.tag || "infra-pocket-general",
       data: data.url ? { url: data.url } : undefined,
       vibrate: [200, 100, 200],
