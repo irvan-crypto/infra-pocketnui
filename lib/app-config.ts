@@ -1,6 +1,6 @@
 export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "v1.0.0";
-export const APP_NAME = "ShipMonitor Pocket";
-export const COMPANY_NAME = "Smart Infrastructure Digital Ecosystem";
+export const APP_NAME = "SIMIRA";
+export const COMPANY_NAME = "Sistem Informasi Monitoring Infrastruktur";
 
 export const STORAGE_KEY_AUTH = "shipmonitor_auth";
 

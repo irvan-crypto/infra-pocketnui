@@ -14,11 +14,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Smart Infrastructure Digital Ecosystem",
+  title: "SIMIRA",
   description: "Sistem Monitoring Pengiriman Semen dari Pelabuhan ke Packing Plant",
   manifest: "/manifest.json",
   icons: {
     icon: [
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
       { url: "/icons/logo192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/logo512.png", sizes: "512x512", type: "image/png" },
     ],
@@ -26,7 +28,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "SINCOS",
+    title: "SIMIRA",
     statusBarStyle: "default",
   },
 };

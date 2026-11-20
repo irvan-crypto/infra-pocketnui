@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, AlertCircle, Smartphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { APP_VERSION } from "@/lib/app-config";
+import { APP_VERSION, APP_NAME } from "@/lib/app-config";
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -152,11 +152,9 @@ export default function LoginScreen() {
 
           {/* Header */}
           <div className="text-center mb-6 sm:mb-8">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mx-auto mb-3 sm:mb-4 overflow-hidden">
-              <img src={`/logo.png?v=${APP_VERSION}`} alt="Logo" className="w-full h-full object-contain" />
+            <div className="w-[110px] sm:w-[122px] md:w-[135px] mx-auto">
+              <img src={`/logo-login.png?v=${APP_VERSION}`} alt="SIMIRA" className="w-full h-auto object-contain" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">INFRASTRUCTURE</h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">Smart Infrastructure Digital Ecosystem</p>
           </div>
 
           {/* Error */}
@@ -247,7 +245,7 @@ export default function LoginScreen() {
                 className="w-full py-2.5 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl font-medium text-sm hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 flex items-center justify-center gap-2 group disabled:opacity-60"
               >
                 <Smartphone size={16} className="group-hover:animate-bounce" />
-                {installing ? "Memproses..." : "Install SINCOS"}
+                {installing ? "Memproses..." : `Install ${APP_NAME}`}
               </button>
 
               {installHint && (
@@ -258,7 +256,7 @@ export default function LoginScreen() {
             </div>
           )}
 
-          <p className="text-center text-[11px] text-gray-400 mt-4">&copy; 2026 Dept. of Infrastructure — design by NUI6184</p>
+          <p className="text-center text-[11px] text-gray-400 mt-4">&copy; 2026 SIMIRA — design by NUI6184</p>
         </div>
       </div>
     </div>

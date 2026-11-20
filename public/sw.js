@@ -1,5 +1,5 @@
-// SINCOS Service Worker
-const CACHE_NAME = "sincos-v3";
+// SIMIRA Service Worker
+const CACHE_NAME = "simira-v2";
 
 // Aset statis yang di-cache saat install
 const PRECACHE_URLS = [
@@ -35,7 +35,7 @@ self.addEventListener("activate", (event) => {
 // ──────────────────────────────────────────────
 self.addEventListener("push", (event) => {
   let data = {
-    title: "SINCOS",
+    title: "SIMIRA",
     body: "Ada pembaruan terbaru",
     icon: "/logo.png",
     badge: "/icons/logo192.png",

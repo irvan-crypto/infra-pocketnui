@@ -6,9 +6,9 @@ import { useState, useEffect, useMemo } from "react";
 import { ChevronDown, ChevronLeft, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { ROLE_LABELS } from "@/lib/auth-config";
 import { MENU, isChildActive, isGroupActive, getItemHref } from "@/lib/menu";
 import { canAccessPath } from "@/lib/access";
+import { APP_NAME } from "@/lib/app-config";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -45,8 +45,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
   if (!user) return null;
 
-  const roleMeta = ROLE_LABELS[user.role];
-
   const toggleGroup = (title: string) =>
     setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }));
 
@@ -60,10 +58,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         {!collapsed && (
           <div className="min-w-0">
             <span className="block text-base font-bold text-white whitespace-nowrap leading-tight">
-              ShipMonitor
+              {APP_NAME}
             </span>
             <span className="block text-[10px] text-white/60 leading-tight truncate">
-              {roleMeta?.label || user.role}
+              Semen Tonasa
             </span>
           </div>
         )}

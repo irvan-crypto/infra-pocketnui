@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "SINCOS",
-  "short_name": "SINCOS",
-  "description": "Smart Infrastructure Digital Ecosystem",
+  "name": "SIMIRA",
+  "short_name": "SIMIRA",
+  "description": "Sistem Informasi Monitoring Infrastruktur",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -24,7 +24,7 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/logo512.png",
+      "src": "/icons/maskable512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

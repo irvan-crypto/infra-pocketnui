@@ -70,7 +70,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
         </main>
 
         <footer className="text-right px-4 sm:px-6 lg:px-8 pb-4">
-          <p className="text-[10px] text-gray-400">&copy; 2026 Dept. of Infrastructure — design by NUI6184</p>
+          <p className="text-[10px] text-gray-400">&copy; 2026 SIMIRA — design by NUI6184</p>
         </footer>
       </div>
     </div>
