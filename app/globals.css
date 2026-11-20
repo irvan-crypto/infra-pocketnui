@@ -194,3 +194,20 @@ body {
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+/* ============================================================
+   Grafik tabung silo (SiloTankChart) — animasi "hidup"
+   ============================================================ */
+
+/* Transisi halus saat tinggi isi berubah (data baru / input) */
+.tank-fill-anim {
+  transition:
+    y 700ms cubic-bezier(0.4, 0, 0.2, 1),
+    height 700ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hormati preferensi pengguna: matikan animasi bila diminta */
+@media (prefers-reduced-motion: reduce) {
+  .tank-fill-anim {
+    transition: none;
+  }
+}

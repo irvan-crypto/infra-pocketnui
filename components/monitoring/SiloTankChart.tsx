@@ -2,17 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatMonitoringNumber } from "@/lib/monitoring-config";
+import { Tank, type SiloTank } from "./SiloTank";
 
 type Row = Record<string, any>;
-
-interface SiloTank {
-  key: string; // kolom stok: stok_silo21
-  nomor: number; // 21
-  nama: string; // "Silo 21" (dari packing_plant)
-  stok: number;
-  kapasitas: number;
-  deadstok: number;
-}
 
 /** Ambil nomor silo dari nama_pp: "Silo 21" -> 21 */
 function parseSiloNumber(nama: unknown): number | null {
@@ -42,118 +34,6 @@ interface SiloTankChartProps {
   groupNames?: Record<number, string>;
   columnPrefix?: string;
   scaleHeight?: boolean; // tinggi tabung proporsional kapasitas (min 70px)
-}
-
-/** Satu tabung silinder SVG: hitam = deadstok, hijau = stok, abu = kapasitas kosong */
-function Tank({ tank, height = 170 }: { tank: SiloTank; height?: number }) {
-  const H = height; // tinggi dinding dalam tabung (px SVG)
-  const deadH = (tank.deadstok / tank.kapasitas) * H;
-  const sisaKapasitas = tank.kapasitas - tank.deadstok;
-  // Stok grafik = stok bersih (stok - deadstok); jika stok < deadstok -> 0
-  const netStok = Math.max(0, tank.stok - tank.deadstok);
-  const stokH =
-    sisaKapasitas > 0
-      ? Math.max(0, Math.min(netStok / sisaKapasitas, 1)) * (H - deadH)
-      : 0;
-  const pct = Math.min(Math.round((tank.stok / tank.kapasitas) * 100), 100);
-  const uid = `cyl-${tank.nomor}`;
-  const top = 22;
-
-  // Label data di dalam segmen.
-  // Hijau = stok bersih (stok - deadstok); hitam = deadstok.
-  // Jika stok < deadstok: segmen hijau hilang (net = 0) dan segmen hitam
-  // berlabel "Deadstock".
-  const stokDiBawahDeadstok = tank.stok < tank.deadstok;
-  const deadstokText = stokDiBawahDeadstok
-    ? "Deadstock"
-    : formatMonitoringNumber(tank.deadstok, true);
-  const stokText = stokDiBawahDeadstok ? "" : formatMonitoringNumber(netStok, true);
-
-  const stokSegmentTop = top + H - deadH - stokH;
-
-  /** Teks di tengah segmen; ukuran font menyesuaikan tinggi segmen */
-  const label = (
-    yCenter: number,
-    h: number,
-    text: string,
-    opts?: { fontSize?: number; fill?: string }
-  ) => {
-    if (!text || h <= 0) return null;
-    const fontSize = opts?.fontSize ?? Math.max(5.5, Math.min(11, h * 0.55));
-    return (
-      <text
-        x="43"
-        y={yCenter}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize={fontSize}
-        fontWeight="600"
-        fill={opts?.fill ?? "#ffffff"}
-        style={{ pointerEvents: "none" }}
-      >
-        {text}
-      </text>
-    );
-  };
-
-  // Label stok: di dalam segmen jika muat; jika tidak muat, dipindah ke
-  // ATAS segmen (area kosong, hijau tua, font normal); fallback ke dalam
-  // dengan font terkecil jika ruang di atas juga sempit.
-  const stokLabel = (() => {
-    if (!stokText || stokH <= 0) return null;
-    if (stokH >= 13) {
-      // Muat di dalam segmen
-      return label(stokSegmentTop + stokH / 2, stokH, stokText);
-    }
-    const ruangAtas = stokSegmentTop - top;
-    if (ruangAtas >= 15) {
-      // Di atas segmen stok: font 9, hijau kontras (green-600)
-      return label(stokSegmentTop - 6, 14, stokText, { fontSize: 9, fill: "#16a34a" });
-    }
-    // Fallback: di dalam, font terkecil
-    return label(stokSegmentTop + stokH / 2, stokH, stokText, { fontSize: 5.5 });
-  })();
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <svg width="86" height={H + top + 12} viewBox={`0 0 86 ${H + top + 12}`} role="img" aria-label={`${tank.nama}: ${tank.stok} ton dari ${tank.kapasitas} ton`}>
-        <defs>
-          <clipPath id={uid}>
-            <rect x="8" y={top} width="70" height={H} rx="10" />
-          </clipPath>
-          <linearGradient id={`${uid}-shine`} x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0" stopColor="rgba(255,255,255,0.28)" />
-            <stop offset="0.5" stopColor="rgba(255,255,255,0)" />
-            <stop offset="1" stopColor="rgba(0,0,0,0.10)" />
-          </linearGradient>
-        </defs>
-
-        {/* Track kapasitas (ruang kosong) */}
-        <rect x="8" y={top} width="70" height={H} rx="10" fill="#f3f4f6" stroke="#e5e7eb" />
-
-        {/* Isi: deadstok (hitam) di dasar + stok (hijau) menumpuk di atasnya */}
-        <g clipPath={`url(#${uid})`}>
-          <rect x="8" y={top + H - deadH} width="70" height={deadH} fill="#111827" />
-          <rect x="8" y={top + H - deadH - stokH} width="70" height={stokH} fill="#22c55e" />
-          {/* Kilau silinder */}
-          <rect x="8" y={top} width="70" height={H} fill={`url(#${uid}-shine)`} />
-          {/* Label data: deadstok selalu di dalam segmen, stok adaptif */}
-          {label(top + H - deadH / 2, deadH, deadstokText)}
-          {stokLabel}
-        </g>
-
-        {/* Bibir atas tabung */}
-        <ellipse cx="43" cy={top} rx="35" ry="8" fill="#f9fafb" stroke="#d1d5db" />
-        <ellipse cx="43" cy={top} rx="24" ry="4.5" fill="#e5e7eb" />
-      </svg>
-
-      <div className="text-center">
-        <p className="text-xs font-bold text-gray-800">{tank.nama}</p>
-        <p className="text-xs font-bold text-gray-700 tabular-nums">{formatMonitoringNumber(tank.stok)} ton</p>
-        <p className="text-[10px] font-bold text-gray-400 tabular-nums">{pct}% terisi</p>
-      </div>
-    </div>
-  );
 }
 
 export default function SiloTankChart({
@@ -244,10 +124,13 @@ export default function SiloTankChart({
   if (failed || (ppRows !== null && silos.length === 0)) {
     return (
       <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
-        <p className="text-sm text-gray-500">Data kapasitas silo (tabel <span className="font-mono">packing_plant</span>) belum tersedia.</p>
+        <p className="text-sm text-gray-500">
+          Data kapasitas silo (tabel <span className="font-mono">packing_plant</span>) belum tersedia.
+        </p>
         <p className="text-xs text-gray-400 mt-1">
-          Isi kolom <span className="font-mono">nama_pp</span>, <span className="font-mono">kapasitas_pp</span>,{" "}
-          <span className="font-mono">deadstok_pp</span> untuk Silo 21&ndash;53, lalu muat ulang halaman.
+          Isi kolom <span className="font-mono">nama_pp</span>,{" "}
+          <span className="font-mono">kapasitas_pp</span>, <span className="font-mono">deadstok_pp</span>{" "}
+          untuk Silo 21&ndash;53, lalu muat ulang halaman.
         </p>
       </div>
     );
