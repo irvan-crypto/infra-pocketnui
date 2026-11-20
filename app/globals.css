@@ -211,3 +211,27 @@ body {
     transition: none;
   }
 }
+
+/* ============================================================
+   Sidebar — flyout saat sidebar collapsed (ikon saja)
+   ============================================================ */
+@keyframes flyoutIn {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-flyout-in {
+  animation: flyoutIn 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-flyout-in {
+    animation: none;
+  }
+}

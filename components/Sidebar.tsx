@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { MENU, isChildActive, isGroupActive, getItemHref } from "@/lib/menu";
+import { MENU, isChildActive, isGroupActive, getItemHref, type MenuItem, type MenuChild } from "@/lib/menu";
 import { canAccessPath } from "@/lib/access";
 import { APP_NAME } from "@/lib/app-config";
 
@@ -17,22 +17,69 @@ interface SidebarProps {
   onMobileClose: () => void;
 }
 
+/** Flyout untuk sidebar collapsed (ikon saja) */
+interface FlyoutState {
+  title: string;
+  top: number;
+  href?: string;
+  children?: MenuChild[];
+}
+
+/** Grup yang berisi halaman aktif — dipakai untuk state awal & sinkronisasi route */
+function findActiveGroupTitle(pathname: string): string | null {
+  const item = MENU.find((i) => i.children?.length && isGroupActive(pathname, i));
+  return item ? item.title : null;
+}
+
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
+  // Accordion eksklusif: maksimal satu dropdown terbuka
+  const [openGroup, setOpenGroup] = useState<string | null>(() => findActiveGroupTitle(pathname));
+  const [flyout, setFlyout] = useState<FlyoutState | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Route berubah: buka grup tujuan, tutup grup lain
   useEffect(() => {
-    const next: Record<string, boolean> = {};
-    for (const item of MENU) {
-      if (item.children && isGroupActive(pathname, item)) {
-        next[item.title] = true;
-      }
-    }
-    if (Object.keys(next).length) {
-      setOpenGroups((prev) => ({ ...next, ...prev }));
-    }
+    setOpenGroup(findActiveGroupTitle(pathname));
+    setFlyout(null);
   }, [pathname]);
+
+  // Flyout tidak relevan saat sidebar melebar / di mobile
+  useEffect(() => {
+    if (!collapsed || mobileOpen) setFlyout(null);
+  }, [collapsed, mobileOpen]);
+
+  useEffect(() => () => clearCloseTimer(), []);
+
+  function clearCloseTimer() {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  }
+
+  function scheduleFlyoutClose() {
+    clearCloseTimer();
+    closeTimer.current = setTimeout(() => setFlyout(null), 160);
+  }
+
+  const showFlyout = useCallback(
+    (el: HTMLElement, item: MenuItem) => {
+      if (!collapsed) return;
+      clearCloseTimer();
+      const rect = el.getBoundingClientRect();
+      const maxTop = Math.max(8, window.innerHeight - 120);
+      setFlyout({
+        title: item.title,
+        top: Math.min(Math.max(8, rect.top), maxTop),
+        href: item.href,
+        children: item.children,
+      });
+    },
+    [collapsed]
+  );
 
   // Menu terbatas (Kelola Pengguna, DB Status) hanya untuk role tertentu
   const menuItems = useMemo(
@@ -45,8 +92,21 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
   if (!user) return null;
 
-  const toggleGroup = (title: string) =>
-    setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }));
+  const toggleGroup = (title: string) => {
+    // Buka grup ini -> grup lain otomatis tertutup; klik grup yang sama -> tutup
+    setOpenGroup((prev) => (prev === title ? null : title));
+  };
+
+  const handleGroupClick = (title: string) => {
+    if (collapsed) {
+      // Sidebar collapsed: klik = lebarkan sidebar + buka grup tersebut
+      setFlyout(null);
+      toggleGroup(title);
+      onToggle();
+      return;
+    }
+    toggleGroup(title);
+  };
 
   const sidebarContent = (
     <>
@@ -68,23 +128,31 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5 scrollbar-thin">
+      <nav
+        className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5 scrollbar-thin"
+        onScroll={() => setFlyout(null)}
+      >
         {menuItems.map((item) => {
           const Icon = item.icon;
 
           // ── Menu dengan submenu (gaya dd-pocket) ──
           if (item.children) {
-            const open = openGroups[item.title] ?? false;
+            const isOpen = openGroup === item.title;
             const active = isGroupActive(pathname, item);
-            const shouldShow = active || open;
             return (
               <div key={item.title}>
                 <button
                   type="button"
-                  onClick={() => !collapsed && toggleGroup(item.title)}
+                  onClick={() => handleGroupClick(item.title)}
+                  onMouseEnter={(e) => showFlyout(e.currentTarget, item)}
+                  onMouseLeave={scheduleFlyoutClose}
+                  onFocus={(e) => showFlyout(e.currentTarget, item)}
+                  onBlur={scheduleFlyoutClose}
+                  aria-expanded={isOpen}
+                  aria-haspopup="menu"
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
-                    shouldShow
+                    active || isOpen
                       ? "bg-blue-600/20 text-white"
                       : "text-white/60 hover:text-white hover:bg-white/5"
                   )}
@@ -95,43 +163,66 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                       <span className="whitespace-nowrap flex-1 text-left">{item.title}</span>
                       <ChevronDown
                         size={16}
-                        className={cn("transition-transform", shouldShow && "rotate-180")}
+                        className={cn(
+                          "transition-transform duration-200",
+                          isOpen && "rotate-180"
+                        )}
                       />
                     </>
                   )}
-                  {shouldShow && (
+                  {active && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-blue-500 rounded-r-md" />
                   )}
                 </button>
-                {shouldShow && !collapsed && (
-                  <div className="space-y-0.5 mt-0.5">
-                    {item.children.map((child) => {
-                      const childActive = isChildActive(pathname, child.href);
-                      return (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          onClick={onMobileClose}
-                          className={cn(
-                            "flex items-center gap-3 pl-6 py-2 rounded-lg text-sm font-medium transition-colors relative",
-                            childActive
-                              ? "bg-blue-600/20 text-white"
-                              : "text-white/60 hover:text-white hover:bg-white/5"
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full flex-shrink-0",
-                              childActive ? "bg-blue-500" : "bg-white/40"
-                            )}
-                          />
-                          <span className="whitespace-nowrap">{child.title}</span>
-                          {childActive && (
-                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-500 rounded-r-md" />
-                          )}
-                        </Link>
-                      );
-                    })}
+
+                {/* Submenu dengan transisi tinggi (grid 0fr -> 1fr);
+                    saat sidebar collapsed digantikan flyout */}
+                {!collapsed && (
+                  <div
+                    className={cn(
+                      "grid transition-all duration-200 ease-out",
+                      isOpen
+                        ? "grid-rows-[1fr] opacity-100"
+                        : "grid-rows-[0fr] opacity-0"
+                    )}
+                  >
+                    <div className="overflow-hidden min-h-0">
+                      <div
+                        className="space-y-0.5 pt-0.5"
+                        aria-hidden={!isOpen}
+                        inert={!isOpen}
+                      >
+                        {item.children.map((child) => {
+                          const childActive = isChildActive(pathname, child.href);
+                          return (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={onMobileClose}
+                              tabIndex={isOpen ? undefined : -1}
+                              aria-current={childActive ? "page" : undefined}
+                              className={cn(
+                                "flex items-center gap-3 pl-6 py-2 rounded-lg text-sm font-medium transition-colors relative",
+                                childActive
+                                  ? "bg-blue-600/20 text-white"
+                                  : "text-white/60 hover:text-white hover:bg-white/5"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                                  childActive ? "bg-blue-500" : "bg-white/40"
+                                )}
+                              />
+                              <span className="whitespace-nowrap">{child.title}</span>
+                              {childActive && (
+                                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-500 rounded-r-md" />
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -146,6 +237,9 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
               key={item.title}
               href={href}
               onClick={onMobileClose}
+              onMouseEnter={(e) => showFlyout(e.currentTarget, item)}
+              onMouseLeave={scheduleFlyoutClose}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
                 active
@@ -183,6 +277,61 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         </button>
         {sidebarContent}
       </aside>
+
+      {/* Flyout sidebar collapsed (fixed agar tidak terpotong area scroll nav) */}
+      {collapsed && !mobileOpen && flyout && (
+        <div
+          className="hidden lg:flex flex-col fixed z-40 w-56 max-h-[70vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900/98 shadow-2xl shadow-black/40 backdrop-blur p-1.5 animate-flyout-in"
+          style={{ left: 80, top: flyout.top }}
+          onMouseEnter={clearCloseTimer}
+          onMouseLeave={scheduleFlyoutClose}
+          role="menu"
+          aria-label={flyout.title}
+        >
+          {flyout.children ? (
+            <>
+              <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/40">
+                {flyout.title}
+              </div>
+              {flyout.children.map((child) => {
+                const childActive = isChildActive(pathname, child.href);
+                return (
+                  <Link
+                    key={child.href}
+                    href={child.href}
+                    role="menuitem"
+                    onClick={onMobileClose}
+                    aria-current={childActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                      childActive
+                        ? "bg-blue-600/25 text-white"
+                        : "text-white/70 hover:text-white hover:bg-white/10"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                        childActive ? "bg-blue-500" : "bg-white/40"
+                      )}
+                    />
+                    <span className="whitespace-nowrap">{child.title}</span>
+                  </Link>
+                );
+              })}
+            </>
+          ) : (
+            <Link
+              href={flyout.href ?? "#"}
+              role="menuitem"
+              onClick={onMobileClose}
+              className="px-2 py-1.5 rounded-lg text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 whitespace-nowrap"
+            >
+              {flyout.title}
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Mobile sidebar overlay */}
       {mobileOpen && (

@@ -44,7 +44,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar
-        collapsed={sidebarCollapsed}
+        collapsed={sidebarCollapsed && !mobileOpen}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
