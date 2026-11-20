@@ -8,9 +8,12 @@ import DataTable from "@/components/ui/DataTable";
 import SiloTankChart from "@/components/monitoring/SiloTankChart";
 import ExpediturSummaryCards from "@/components/monitoring/ExpediturSummaryCards";
 import GroupedSummaryCards from "@/components/monitoring/GroupedSummaryCards";
+import LineChart from "@/components/monitoring/LineChart";
 import {
   formatMonitoringNumber,
   formatTanggalPanjang,
+  isTotalField,
+  monitoringFieldValue,
   type MonitoringField,
   type MonitoringTableConfig,
 } from "@/lib/monitoring-config";
@@ -25,6 +28,7 @@ type Row = Record<string, any>;
 type FormData = Record<string, string>;
 
 const WRITE_ROLES = ["admin", "asisten_admin", "operator"];
+const BULAN_SINGKAT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 export default function MonitoringPage({ config }: { config: MonitoringTableConfig }) {
   const { user } = useAuth();
@@ -48,11 +52,52 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
   const [showUpload, setShowUpload] = useState(false);
   const [uploadParsing, setUploadParsing] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ rows: ParsedRow[]; errors: string[] } | null>(null);
+
+  /** Data grafik garis (tren harian) — dihitung dari config.lineCharts */
+  const lineChartData = useMemo(() => {
+    const charts = config.lineCharts ?? [];
+    if (charts.length === 0) return [];
+
+    const fieldByKey = new Map(config.fields.map((f) => [f.key, f]));
+    const asc = [...rows]
+      .filter((r) => r.tanggal)
+      .sort((a, b) => String(a.tanggal).localeCompare(String(b.tanggal)));
+    const labels = asc.map((r) => {
+      const [, m, d] = String(r.tanggal).split("-");
+      return d ? `${Number(d)} ${BULAN_SINGKAT[Number(m) - 1] ?? m}` : String(r.tanggal);
+    });
+
+    return charts.map((c) => ({
+      title: c.title,
+      labels,
+      series: c.series.map((sr) => ({
+        label: sr.label,
+        color: sr.color,
+        values: asc.map((r) =>
+          sr.fieldKeys.reduce((sum, key) => {
+            const f = fieldByKey.get(key);
+            return sum + (f ? monitoringFieldValue(r, f) : Number(r[key] ?? 0));
+          }, 0)
+        ),
+      })),
+    }));
+  }, [config, rows]);
+
+  /** Grafik yang seluruh nilainya 0 disembunyikan (tanpa menyisakan ruang kosong) */
+  const visibleLineCharts = useMemo(() => {
+    return lineChartData
+      .map((c) => ({ ...c, series: c.series.filter((s) => s.values.some((v) => v !== 0)) }))
+      .filter((c) => c.series.length > 0);
+  }, [lineChartData]);
   const [uploadError, setUploadError] = useState("");
   const [savingUpload, setSavingUpload] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  const editableFields = useMemo(() => config.fields.filter((f) => !f.generated), [config]);
+  // Kolom isian: bukan generated database, bukan kolom virtual (dihitung UI)
+  const editableFields = useMemo(
+    () => config.fields.filter((f) => !f.generated && !f.virtual),
+    [config]
+  );
   const formGroups = useMemo(() => {
     const groups: Record<string, MonitoringField[]> = {};
     for (const f of editableFields) {
@@ -314,8 +359,19 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
         className: f.type === "number" ? "text-right" : "text-left",
         render: (r: Row) =>
           f.type === "number" ? (
-            <span className={f.generated ? "text-gray-500 italic" : "tabular-nums"}>
-              {formatMonitoringNumber(r[f.key], f.integer)}
+            <span
+              className={
+                isTotalField(f)
+                  ? "font-bold text-gray-900 tabular-nums"
+                  : f.generated || f.virtual
+                    ? "text-gray-500 italic tabular-nums"
+                    : "tabular-nums"
+              }
+            >
+              {formatMonitoringNumber(
+                f.virtual ? monitoringFieldValue(r, f) : r[f.key],
+                f.integer
+              )}
             </span>
           ) : (
             <span className="font-medium text-gray-900">{r[f.key] || "-"}</span>
@@ -492,8 +548,27 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
       )}
 
       {/* Ringkasan grid card dari data tabel (mis. CP Tonasa: OPC & PCC) */}
-      {config.slug === "cp-tonasa" && rows.length > 0 && (
+      {config.groupedSummary && rows.length > 0 && (
         <GroupedSummaryCards config={config} rows={rows} />
+      )}
+
+      {/* Grafik garis tren harian (mis. PP: OPC, PCC, Rilis OPC, Rilis PCC) */}
+      {visibleLineCharts.length > 0 && (
+        <div className="mb-6">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+              Grafik Tren Harian
+            </h2>
+            <span className="text-[11px] font-medium text-gray-500">
+              {visibleLineCharts[0].labels.length} hari data
+            </span>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {visibleLineCharts.map((c) => (
+              <LineChart key={c.title} title={c.title} labels={c.labels} series={c.series} />
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Tabel data */}

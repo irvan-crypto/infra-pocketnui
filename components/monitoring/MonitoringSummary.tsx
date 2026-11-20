@@ -11,6 +11,7 @@ import {
   MONITORING_CONFIGS,
   formatMonitoringNumber,
   formatTanggalPanjang,
+  monitoringFieldValue,
   type MonitoringTableConfig,
 } from "@/lib/monitoring-config";
 
@@ -93,7 +94,7 @@ export default function MonitoringSummary() {
     }
     const keys = MONITORING_CONFIGS
       .find((c) => c.table === "silo_pantai")!
-      .fields.filter((f) => !f.generated)
+      .fields.filter((f) => !f.generated && !f.virtual)
       .map((f) => f.key);
     return keys.reduce((sum, k) => sum + Number(pantai[k] || 0), 0);
   }, [pantai]);
@@ -111,15 +112,26 @@ export default function MonitoringSummary() {
     return ppConfigs
       .map((cfg: MonitoringTableConfig) => {
         const row = latest[cfg.table];
-        const f = cfg.fields; // [masuk, rilis, stok]
+        // Cari key kolom berdasarkan akhiran (struktur PP: *_masuk_opc, dst.)
+        const keyOf = (suffix: string) =>
+          cfg.fields.find((f) => f.key.endsWith(suffix))?.key;
+        const num = (suffix: string) => {
+          if (!row) return null;
+          const k = keyOf(suffix);
+          return k ? Number(row[k] || 0) : null;
+        };
+        // Total rilis OPC = total curah + total zak (kolom virtual, dihitung di UI)
+        const totalRilis = cfg.fields.find(
+          (f) => f.virtual && f.key.endsWith("_totalrilis_opc")
+        );
         return {
           id: cfg.slug,
           lokasi: cfg.title,
           grup: cfg.slug.startsWith("pp1-") ? "PP1" : "PP2",
           tanggal: row?.tanggal || null,
-          masuk: row ? Number(row[f[0].key] || 0) : null,
-          rilis: row ? Number(row[f[1].key] || 0) : null,
-          stok: row ? Number(row[f[2].key] || 0) : null,
+          masuk: num("_masuk_opc"),
+          rilis: row && totalRilis ? monitoringFieldValue(row, totalRilis) : null,
+          stok: num("_stokakhir_opc"),
         };
       })
       .sort((a, b) => a.grup.localeCompare(b.grup) || a.lokasi.localeCompare(b.lokasi));
@@ -153,19 +165,19 @@ export default function MonitoringSummary() {
       },
       {
         key: "masuk",
-        header: "Masuk (ton)",
+        header: "Masuk OPC (ton)",
         className: "text-right",
         render: (r: any) => <span className="tabular-nums">{r.masuk === null ? "-" : formatMonitoringNumber(r.masuk)}</span>,
       },
       {
         key: "rilis",
-        header: "Rilis (ton)",
+        header: "Rilis OPC (ton)",
         className: "text-right",
         render: (r: any) => <span className="tabular-nums">{r.rilis === null ? "-" : formatMonitoringNumber(r.rilis)}</span>,
       },
       {
         key: "stok",
-        header: "Stok (ton)",
+        header: "Stok Akhir OPC (ton)",
         className: "text-right",
         render: (r: any) => <span className="tabular-nums font-semibold">{r.stok === null ? "-" : formatMonitoringNumber(r.stok)}</span>,
       },

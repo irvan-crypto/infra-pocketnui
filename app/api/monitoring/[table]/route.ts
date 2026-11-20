@@ -48,6 +48,7 @@ function sanitizePayload(
   }
   for (const f of cfg.fields) {
     if (f.generated) continue; // generated column dihitung database
+    if (f.virtual) continue; // kolom virtual hanya dihitung di UI
     const v = body[f.key];
     if (v === undefined) continue;
     if (f.type === "number") {

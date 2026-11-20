@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowRight } from "lucide-react";
 import {
   formatMonitoringNumber,
-  formatTanggalPanjang,
+  monitoringFieldValue,
   type MonitoringField,
   type MonitoringTableConfig,
 } from "@/lib/monitoring-config";
@@ -17,72 +16,58 @@ interface SummaryGroup {
   total?: MonitoringField;
 }
 
-interface Accent {
-  border: string;
-  ribbon: string;
-  softText: string;
-}
+/** Warna pita diagonal per grup (OPC / PCC), fallback untuk grup lain */
+const RIBBON_COLORS = ["#f43f5e", "#10b981", "#f59e0b", "#8b5cf6"];
 
-/** Aksen warna per grup (string statis agar tidak di-purge Tailwind) */
-const ACCENTS: Accent[] = [
-  {
-    border: "border-l-blue-500",
-    ribbon: "#f43f5e", // rose-500 (OPC)
-    softText: "text-blue-700",
-  },
-  {
-    border: "border-l-emerald-500",
-    ribbon: "#10b981",
-    softText: "text-emerald-700",
-  },
-  {
-    border: "border-l-amber-500",
-    ribbon: "#f59e0b",
-    softText: "text-amber-700",
-  },
-  {
-    border: "border-l-violet-500",
-    ribbon: "#8b5cf6",
-    softText: "text-violet-700",
-  },
-];
+/** Warna garis tepi kiri kartu: MTD = biru, Harian = hijau */
+const BORDER_MTD = "border-l-blue-500";
+const BORDER_HARIAN = "border-l-emerald-500";
 
-/** Kartu capaian: Prod FM → Total Rilis → Capaian */
+/** Kartu capaian: persentase (kiri) + Masuk/Prod FM & Rilis (kanan) */
 function CapaianCard({
   group,
-  accent,
+  ribbon,
+  borderClass,
   prod,
   total,
   hasData,
+  period,
+  periodShort,
 }: {
   group: SummaryGroup;
-  accent: Accent;
+  ribbon: string;
+  borderClass: string;
   prod: number;
   total: number;
   hasData: boolean;
+  period: string;
+  periodShort: string;
 }) {
   const capaian = prod > 0 ? (total / prod) * 100 : 0;
   const capaianText = hasData
-    ? `${capaian.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`
+    ? `${capaian.toLocaleString("id-ID", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })} %`
     : "-";
 
   return (
     <div
-      className={`relative overflow-hidden bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 ${accent.border} p-4 sm:p-5`}
+      className={`@container relative overflow-hidden bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 ${borderClass} p-1.5 sm:p-3 2xl:p-4`}
     >
       {/* Pita diagonal grup (OPC / PCC) */}
       <div
         style={{
           position: "absolute",
-          top: "8px",
-          right: "-22px",
+          top: "7px",
+          right: "-20px",
           transform: "rotate(45deg)",
-          backgroundColor: accent.ribbon,
+          backgroundColor: ribbon,
           color: "white",
-          fontSize: "9px",
+          fontSize: "8px",
           fontWeight: 800,
           letterSpacing: "0.05em",
-          padding: "4px 36px",
+          padding: "3px 22px",
           boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
           zIndex: 10,
           pointerEvents: "none",
@@ -93,40 +78,38 @@ function CapaianCard({
         {group.name}
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+      {/* Periode (kiri, di atas persentase) */}
+      <p className="mt-2.5 text-[10px] sm:text-[11px] font-medium text-gray-400 whitespace-nowrap">
+        <span className="sm:hidden">{periodShort}</span>
+        <span className="hidden sm:inline">{period}</span>
+      </p>
+
+      {/* Persentase kiri · rincian kanan (semua ukuran layar) */}
+      <div className="mt-1 flex items-center justify-between gap-0.5 sm:gap-2">
+        <p
+          className={`text-[clamp(0.65rem,7.6cqw,1.5rem)] font-bold tabular-nums leading-none whitespace-nowrap ${
+            hasData ? (capaian >= 100 ? "text-emerald-600" : "text-rose-600") : "text-gray-900"
+          }`}
+        >
+          {capaianText}
+        </p>
+
+        <div className="grid shrink-0 grid-cols-[auto_auto_auto] items-baseline gap-x-0.5 gap-y-0.5 sm:gap-x-1 sm:justify-end">
+          <span className="text-[clamp(6.5px,4.4cqw,10px)] font-medium text-gray-400 text-right">
             {group.prod?.shortLabel || "Prod FM"}
-          </p>
-          <p className="mt-0.5 text-base sm:text-lg font-bold text-gray-900 tabular-nums whitespace-nowrap">
+          </span>
+          <span className="text-[clamp(7.5px,6cqw,14px)] font-normal text-gray-900 tabular-nums text-right whitespace-nowrap">
             {hasData ? formatMonitoringNumber(prod, group.prod?.integer) : "-"}
-            <span className="ml-1 text-[11px] font-medium text-gray-400">ton</span>
-          </p>
-        </div>
+          </span>
+          <span className="text-[clamp(6.5px,4.4cqw,10px)] font-medium text-gray-400">ton</span>
 
-        <ArrowRight size={14} className="shrink-0 text-gray-300" />
-
-        <div className="min-w-0">
-          <p className={`text-[10px] font-semibold uppercase tracking-wider ${accent.softText}`}>
-            {group.total?.shortLabel || "Total Rilis"}
-          </p>
-          <p className="mt-0.5 text-base sm:text-lg font-bold text-gray-900 tabular-nums whitespace-nowrap">
+          <span className="text-[clamp(6.5px,4.4cqw,10px)] font-medium text-gray-400 text-right">
+            {(group.total?.shortLabel || "Total Rilis").replace(/^Total\s+/i, "")}
+          </span>
+          <span className="text-[clamp(7.5px,6cqw,14px)] font-normal text-gray-900 tabular-nums text-right whitespace-nowrap">
             {hasData ? formatMonitoringNumber(total, group.total?.integer) : "-"}
-            <span className="ml-1 text-[11px] font-medium text-gray-400">ton</span>
-          </p>
-        </div>
-
-        <ArrowRight size={14} className="shrink-0 text-gray-300" />
-
-        <div className="min-w-0 text-right">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Capaian</p>
-          <p
-            className={`mt-0.5 text-base sm:text-lg font-bold tabular-nums whitespace-nowrap ${
-              hasData ? (capaian >= 100 ? "text-emerald-600" : "text-rose-600") : "text-gray-900"
-            }`}
-          >
-            {capaianText}
-          </p>
+          </span>
+          <span className="text-[clamp(6.5px,4.4cqw,10px)] font-medium text-gray-400">ton</span>
         </div>
       </div>
     </div>
@@ -153,12 +136,15 @@ export default function GroupedSummaryCards({
         out.push(g);
       }
       if (f.key.startsWith("prod_")) g.prod = f;
-      else if (f.generated) g.total = f;
+      else if (!g.prod && /masuk/i.test(f.key) && !f.generated) g.prod = f; // PP: masuk = sisi "produksi"
+      if (f.virtual) g.total = f; // Total Rilis (virtual) diprioritaskan
+      else if (f.generated && !g.total?.virtual) g.total = f;
     }
     return out;
   }, [config]);
 
-  const num = (key?: string) => (latest && key ? Number(latest[key] || 0) : 0);
+  const num = (field?: MonitoringField) =>
+    latest && field ? monitoringFieldValue(latest, field) : 0;
 
   /** Akumulasi bulan berjalan (MTD) dari tanggal data terbaru */
   const mtd = useMemo(() => {
@@ -168,67 +154,78 @@ export default function GroupedSummaryCards({
 
     const sums: Record<string, { prod: number; total: number }> = {};
     for (const g of groups) {
-      const prod = inMonth.reduce((s, r) => s + Number(r[g.prod?.key || ""] || 0), 0);
-      const total = inMonth.reduce((s, r) => s + Number(r[g.total?.key || ""] || 0), 0);
+      const prod = inMonth.reduce((s, r) => s + (g.prod ? monitoringFieldValue(r, g.prod) : 0), 0);
+      const total = inMonth.reduce((s, r) => s + (g.total ? monitoringFieldValue(r, g.total) : 0), 0);
       sums[g.name] = { prod, total };
     }
 
     return { month, days: inMonth.length, sums };
   }, [rows, groups, latest]);
 
-  const monthLabel = useMemo(() => {
-    if (!mtd) return "";
-    const [y, m] = mtd.month.split("-");
+  /** Label periode harian: "Ringkasan Harian 18 Nov" */
+  const harianLabel = useMemo(() => {
+    const t = latest?.tanggal ? String(latest.tanggal) : "";
+    const [, m, d] = t.split("-");
     const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-    return `${bulan[Number(m) - 1] ?? m} ${y}`;
-  }, [mtd]);
+    if (!d) return "Ringkasan Harian";
+    return `Ringkasan Harian ${Number(d)} ${bulan[Number(m) - 1] ?? m}`;
+  }, [latest]);
 
-  if (groups.length === 0) return null;
+  /** Versi pendek untuk mobile: "Harian 18 Nov" */
+  const harianLabelShort = harianLabel.replace(/^Ringkasan\s+/i, "");
+
+  // Kumpulkan kartu: MTD dulu, lalu harian — kartu yang semua nilainya 0 dibuang
+  const cards = [
+    ...groups.map((g, gi) => ({
+      key: `capaian-mtd-${g.name}`,
+      group: g,
+      ribbon: RIBBON_COLORS[gi % RIBBON_COLORS.length],
+      borderClass: BORDER_MTD,
+      prod: mtd?.sums[g.name]?.prod ?? 0,
+      total: mtd?.sums[g.name]?.total ?? 0,
+      hasData: !!mtd && mtd.days > 0,
+      period: "Ringkasan MTD",
+      periodShort: "Ringkasan MTD",
+    })),
+    ...groups.map((g, gi) => ({
+      key: `capaian-harian-${g.name}`,
+      group: g,
+      ribbon: RIBBON_COLORS[gi % RIBBON_COLORS.length],
+      borderClass: BORDER_HARIAN,
+      prod: num(g.prod),
+      total: num(g.total),
+      hasData: !!latest,
+      period: harianLabel,
+      periodShort: harianLabelShort,
+    })),
+  ].filter((c) => c.prod !== 0 || c.total !== 0);
+
+  if (groups.length === 0 || cards.length === 0) return null;
+
+  // Jumlah kolom menyesuaikan jumlah kartu yang tampil agar tidak ada sisa kolom kosong
+  const gridCols =
+    cards.length <= 2
+      ? "grid-cols-2"
+      : cards.length === 3
+        ? "grid-cols-2 xl:grid-cols-3"
+        : "grid-cols-2 xl:grid-cols-4";
 
   return (
     <div className="mb-6">
-      {/* ── MTD (akumulasi bulan berjalan) ── */}
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-          Ringkasan Produksi &amp; Rilis — MTD
-        </h2>
-        <span className="text-[11px] font-medium text-gray-500">
-          {mtd ? `${monthLabel} · ${mtd.days} hari data` : "Belum ada data"}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-        {groups.map((g, gi) => (
+      {/* 1 baris, 4 kolom saat desktop: [MTD OPC, MTD PCC, Harian OPC, Harian PCC]
+          Kartu bernilai 0 tidak dirender sehingga tidak menyisakan ruang kosong */}
+      <div className={`grid ${gridCols} gap-2.5 sm:gap-4`}>
+        {cards.map((c) => (
           <CapaianCard
-            key={`capaian-mtd-${g.name}`}
-            group={g}
-            accent={ACCENTS[gi % ACCENTS.length]}
-            prod={mtd?.sums[g.name]?.prod ?? 0}
-            total={mtd?.sums[g.name]?.total ?? 0}
-            hasData={!!mtd && mtd.days > 0}
-          />
-        ))}
-      </div>
-
-      {/* ── Harian (baris terbaru) ── */}
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-          Ringkasan Produksi &amp; Rilis
-        </h2>
-        <span className="text-[11px] font-medium text-gray-500">
-          {latest ? `Per ${formatTanggalPanjang(latest.tanggal)}` : "Belum ada data"}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {groups.map((g, gi) => (
-          <CapaianCard
-            key={`capaian-${g.name}`}
-            group={g}
-            accent={ACCENTS[gi % ACCENTS.length]}
-            prod={num(g.prod?.key)}
-            total={num(g.total?.key)}
-            hasData={!!latest}
+            key={c.key}
+            group={c.group}
+            ribbon={c.ribbon}
+            borderClass={c.borderClass}
+            prod={c.prod}
+            total={c.total}
+            hasData={c.hasData}
+            period={c.period}
+            periodShort={c.periodShort}
           />
         ))}
       </div>

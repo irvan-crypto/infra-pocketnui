@@ -32,7 +32,7 @@ function labelToKeyMap(config: MonitoringTableConfig): Map<string, string> {
   const map = new Map<string, string>();
   map.set(normHeader(HEADER_TANGGAL), "tanggal");
   for (const f of config.fields) {
-    if (f.generated) continue; // generated column tidak diisi manual
+    if (f.generated || f.virtual) continue; // tidak diisi manual
     map.set(normHeader(f.label), f.key);
     if (f.shortLabel) map.set(normHeader(f.shortLabel), f.key);
     map.set(normHeader(f.key), f.key); // nama kolom DB juga diterima
@@ -42,7 +42,7 @@ function labelToKeyMap(config: MonitoringTableConfig): Map<string, string> {
 
 /** Generate & download template .xlsx (1 baris, tanggal kemarin) */
 export function downloadTemplate(config: MonitoringTableConfig): void {
-  const fields = config.fields.filter((f) => !f.generated);
+  const fields = config.fields.filter((f) => !f.generated && !f.virtual);
   const headers = [HEADER_TANGGAL, ...fields.map((f) => f.label)];
   const tgl = yesterdayISO();
 
@@ -158,7 +158,7 @@ export async function parseTemplateFile(
     const values: Record<string, number | string> = {};
     let rowOk = true;
     for (const f of config.fields) {
-      if (f.generated) continue;
+      if (f.generated || f.virtual) continue;
       const v = mapped[f.key];
       if (f.type === "number") {
         const n = parseNumber(v);

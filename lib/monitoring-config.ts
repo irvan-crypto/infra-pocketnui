@@ -11,8 +11,23 @@ export interface MonitoringField {
   group?: string; // pengelompokan di form (mis. "OPC", "PCC")
   subGroup?: string; // sub-grup header tabel (mis. "Rilis Semen Curah OPC")
   generated?: boolean; // generated column — dihitung database, tidak diisi manual
+  virtual?: boolean; // kolom turunan yang dihitung di UI (tidak ada di database)
+  sumOf?: string[]; // untuk kolom virtual: key kolom sumber yang dijumlahkan
   integer?: boolean; // tampil tanpa desimal (retase, armada)
   required?: boolean;
+}
+
+/** Satu seri pada grafik garis (nilai = jumlah kolom-kolom `fieldKeys`) */
+export interface MonitoringLineChartSeries {
+  label: string;
+  color: string;
+  fieldKeys: string[];
+}
+
+/** Definisi grafik garis (mis. PP: OPC, PCC, Rilis OPC, Rilis PCC) */
+export interface MonitoringLineChartConfig {
+  title: string;
+  series: MonitoringLineChartSeries[];
 }
 
 export interface MonitoringTableConfig {
@@ -28,6 +43,10 @@ export interface MonitoringTableConfig {
   chart?: MonitoringChartConfig; // grafik tabung silo (opsional)
   /** Grup header tabel data (mis. TONASA 2/3 membawahi Silo 21-24) */
   tableGroups?: { label: string; columns: number[] }[];
+  /** Tampilkan grid card ringkasan per grup (OPC/PCC) di atas tabel */
+  groupedSummary?: boolean;
+  /** Grafik garis tren harian (opsional) */
+  lineCharts?: MonitoringLineChartConfig[];
 }
 
 /** Konfigurasi grafik tabung silo */
@@ -38,12 +57,96 @@ export interface MonitoringChartConfig {
   scaleHeight?: boolean; // tinggi tabung proporsional kapasitas
 }
 
-/** Kolom masuk/rilis/stok untuk PP cabang (pola sama, prefiks berbeda) */
-function ppFields(prefix: string): MonitoringField[] {
+/**
+ * Satu blok (OPC atau PCC) untuk tabel PP cabang — 10 kolom.
+ * Urutan (sesuai header 3 baris):
+ *   Stok Awal | Masuk | [Rilis Curah, Jumbo Curah, Total Curah,
+ *              Zak 50, Zak 40, Total Zak] | Stok Akhir | Total Rilis
+ */
+function ppBlock(
+  prefix: string,
+  suffix: "opc" | "pcc",
+  group: string
+): MonitoringField[] {
+  const key = (name: string) => `${prefix}_${name}_${suffix}`;
+  const groupRilis = `Rilis ${group}`;
   return [
-    { key: `${prefix}_masuk`, label: "Masuk (ton)", shortLabel: "Masuk", type: "number" },
-    { key: `${prefix}_rilis`, label: "Rilis (ton)", shortLabel: "Rilis", type: "number" },
-    { key: `${prefix}_stok`, label: "Stok (ton)", shortLabel: "Stok", type: "number" },
+    { key: key("stokawal"), label: `Stok Awal (${group})`, shortLabel: "Stok Awal", type: "number", group },
+    { key: key("masuk"), label: `Masuk (${group})`, shortLabel: "Masuk", type: "number", group },
+    { key: key("riliscurah"), label: `Rilis Curah (${group})`, shortLabel: "Rilis Curah", type: "number", group, subGroup: groupRilis },
+    { key: key("rilisjcurah"), label: `Rilis Jumbo Curah (${group})`, shortLabel: "Jumbo Curah", type: "number", group, subGroup: groupRilis },
+    { key: key("totalcurah"), label: `Total Curah (${group})`, shortLabel: "Total Curah", type: "number", group, subGroup: groupRilis, generated: true },
+    { key: key("riliszak50"), label: `Rilis Zak 50 (${group})`, shortLabel: "Zak 50", type: "number", group, subGroup: groupRilis },
+    { key: key("riliszak40"), label: `Rilis Zak 40 (${group})`, shortLabel: "Zak 40", type: "number", group, subGroup: groupRilis },
+    { key: key("totalzak"), label: `Total Zak (${group})`, shortLabel: "Total Zak", type: "number", group, subGroup: groupRilis, generated: true },
+    { key: key("stokakhir"), label: `Stok Akhir (${group})`, shortLabel: "Stok Akhir", type: "number", group },
+    {
+      // Dihitung di UI (= total curah + total zak), bukan kolom database
+      key: `${prefix}_totalrilis_${suffix}`,
+      label: `Total Rilis (${group})`,
+      shortLabel: "Total Rilis",
+      type: "number",
+      group,
+      virtual: true,
+      sumOf: [key("riliscurah"), key("rilisjcurah"), key("riliszak50"), key("riliszak40")],
+    },
+  ];
+}
+
+/** Kolom OPC + PCC untuk PP cabang (20 kolom tampilan, pola sama, prefiks berbeda) */
+function ppFields(prefix: string): MonitoringField[] {
+  return [...ppBlock(prefix, "opc", "OPC"), ...ppBlock(prefix, "pcc", "PCC")];
+}
+
+/** Nilai numerik satu field dari 1 baris data (kolom virtual dihitung dari sumOf) */
+export function monitoringFieldValue(
+  row: Record<string, unknown> | null | undefined,
+  field: MonitoringField
+): number {
+  if (field.virtual && field.sumOf) {
+    return field.sumOf.reduce((sum, k) => sum + Number(row?.[k] ?? 0), 0);
+  }
+  return Number(row?.[field.key] ?? 0);
+}
+
+/** Kolom "Total ..." (generated/virtual) — ditampilkan bold di tabel data */
+export function isTotalField(field: MonitoringField): boolean {
+  return field.generated === true || field.virtual === true || /total/i.test(field.key);
+}
+
+function ppLineCharts(prefix: string): MonitoringLineChartConfig[] {
+  const k = (name: string, sfx: "opc" | "pcc") => `${prefix}_${name}_${sfx}`;
+  const COLOR = { masuk: "#2563eb", rilis: "#f43f5e", curah: "#0ea5e9", zak: "#f59e0b" };
+
+  return [
+    {
+      title: "OPC",
+      series: [
+        { label: "Masuk OPC", color: COLOR.masuk, fieldKeys: [k("masuk", "opc")] },
+        { label: "Rilis OPC", color: COLOR.rilis, fieldKeys: [k("totalrilis", "opc")] },
+      ],
+    },
+    {
+      title: "PCC",
+      series: [
+        { label: "Masuk PCC", color: COLOR.masuk, fieldKeys: [k("masuk", "pcc")] },
+        { label: "Rilis PCC", color: COLOR.rilis, fieldKeys: [k("totalrilis", "pcc")] },
+      ],
+    },
+    {
+      title: "Rilis OPC",
+      series: [
+        { label: "Total Curah", color: COLOR.curah, fieldKeys: [k("totalcurah", "opc")] },
+        { label: "Total Zak", color: COLOR.zak, fieldKeys: [k("totalzak", "opc")] },
+      ],
+    },
+    {
+      title: "Rilis PCC",
+      series: [
+        { label: "Total Curah", color: COLOR.curah, fieldKeys: [k("totalcurah", "pcc")] },
+        { label: "Total Zak", color: COLOR.zak, fieldKeys: [k("totalzak", "pcc")] },
+      ],
+    },
   ];
 }
 
@@ -57,9 +160,11 @@ function ppConfig(
     slug,
     table,
     title,
-    subtitle: "Monitoring harian masuk, rilis, dan stok (ton)",
+    subtitle: "Monitoring harian stok awal, masuk, rilis & stok akhir OPC/PCC (ton)",
     uniquePerDate: true,
     fields: ppFields(prefix),
+    groupedSummary: true,
+    lineCharts: ppLineCharts(prefix),
   };
 }
 
@@ -127,6 +232,7 @@ export const MONITORING_CONFIGS: MonitoringTableConfig[] = [
     title: "CP Tonasa",
     subtitle: "Produksi & rilis harian OPC & PCC (ton)",
     uniquePerDate: true,
+    groupedSummary: true,
     fields: [
       { key: "prod_fmopc", label: "Produksi FM (OPC)", shortLabel: "Prod. FM", type: "number", group: "OPC" },
       { key: "rilis_spantaiopc", label: "Rilis Silo Pantai (OPC)", shortLabel: "Silo Pantai", type: "number", group: "OPC", subGroup: "Rilis Semen Curah OPC" },
