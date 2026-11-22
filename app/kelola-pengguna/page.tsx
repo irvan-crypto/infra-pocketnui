@@ -47,7 +47,7 @@ const emptyForm = (): UserForm => ({
   username: "",
   password: DEFAULT_PASSWORD,
   role: "operator",
-  akses: "Semua Akses",
+  akses: AKSES_OPTIONS[0],
   akses_pp: "",
   status: "Aktif",
 });
@@ -117,14 +117,26 @@ export default function KelolaPenggunaPage() {
     })();
   }, [user, canManage, router, fetchRows, fetchMeta]);
 
-  const roleOptions = meta?.roles?.length ? meta.roles : [...ROLES];
+  // Admin & Asisten Admin hanya muncul untuk pengguna yang login sebagai admin
+  const roleOptions = useMemo(() => {
+    const fromMeta = meta?.roles?.length ? meta.roles : [...ROLES];
+    const known = fromMeta
+      .map((r) => normalizeRole(r))
+      .filter((r): r is NonNullable<ReturnType<typeof normalizeRole>> => Boolean(r));
+    const ordered = ROLES.filter((r) => known.includes(r));
+    const list = ordered.length > 0 ? ordered : [...ROLES];
+    if (user?.role === "admin") return list as string[];
+    return list.filter((r) => r !== "admin" && r !== "asisten_admin") as string[];
+  }, [meta, user?.role]);
+
+  const isOperatorForm = normalizeRole(form.role) === "operator";
 
   const aksesOptionsForRole = useMemo(() => {
+    if (!isOperatorForm) return [];
     const fromMeta = meta?.roleAkses?.[form.role];
     if (fromMeta && fromMeta.length > 0) return fromMeta;
-    if (form.role !== "operator") return ["Semua Akses"];
     return AKSES_OPTIONS;
-  }, [meta, form.role]);
+  }, [meta, form.role, isOperatorForm]);
 
   const aksesPpOptions = useMemo(() => {
     const fromMeta = meta?.aksesPp?.[form.akses];
@@ -132,7 +144,8 @@ export default function KelolaPenggunaPage() {
     return getAksesPpOptions(form.akses);
   }, [meta, form.akses]);
 
-  const showAksesPp = requiresAksesPp(form.akses) && aksesPpOptions.length > 0;
+  const showAkses = isOperatorForm;
+  const showAksesPp = isOperatorForm && requiresAksesPp(form.akses) && aksesPpOptions.length > 0;
   const passwordCheck = checkPassword(form.password);
 
   // ── Form helpers ──────────────────────────────────────────
@@ -146,7 +159,7 @@ export default function KelolaPenggunaPage() {
 
   const openCreate = () => {
     const base = emptyForm();
-    base.akses = meta?.roleAkses?.[base.role]?.[0] || "Semua Akses";
+    base.akses = meta?.roleAkses?.[base.role]?.[0] || AKSES_OPTIONS[0];
     setForm(base);
     setFormError("");
     setIsEditing(false);
@@ -162,12 +175,18 @@ export default function KelolaPenggunaPage() {
       const next = { ...prev, [name]: value };
 
       if (name === "role") {
-        const options =
-          meta?.roleAkses?.[value] ?? (value !== "operator" ? ["Semua Akses"] : AKSES_OPTIONS);
-        next.akses = options[0] || "Semua Akses";
-        next.akses_pp = requiresAksesPp(next.akses)
-          ? meta?.aksesPp?.[next.akses]?.[0] || getAksesPpOptions(next.akses)[0] || ""
-          : "";
+        const isOperator = normalizeRole(value) === "operator";
+        if (!isOperator) {
+          // Akses & Hak Akses hanya relevan untuk Operator
+          next.akses = "";
+          next.akses_pp = "";
+        } else {
+          const options = meta?.roleAkses?.[value] ?? AKSES_OPTIONS;
+          next.akses = options[0] || AKSES_OPTIONS[0];
+          next.akses_pp = requiresAksesPp(next.akses)
+            ? meta?.aksesPp?.[next.akses]?.[0] || getAksesPpOptions(next.akses)[0] || ""
+            : "";
+        }
       }
 
       if (name === "akses") {
@@ -190,7 +209,7 @@ export default function KelolaPenggunaPage() {
       username: row.username || "",
       password: "",
       role: normalizeRole(row.role) || "guest",
-      akses: row.akses || "Semua Akses",
+      akses: row.akses || AKSES_OPTIONS[0],
       akses_pp: row.akses_pp || "",
       status: row.status || "Aktif",
     });
@@ -218,7 +237,7 @@ export default function KelolaPenggunaPage() {
     }
 
     if (showAksesPp && !form.akses_pp) {
-      return setFormError("Akses PP wajib dipilih");
+      return setFormError("Hak Akses wajib dipilih");
     }
 
     setSaving(true);
@@ -232,7 +251,7 @@ export default function KelolaPenggunaPage() {
         departemen: form.departemen,
         username: form.username,
         role: form.role,
-        akses: form.akses,
+        akses: showAkses ? form.akses : null,
         akses_pp: showAksesPp ? form.akses_pp : null,
         status: form.status,
       };
@@ -370,7 +389,7 @@ export default function KelolaPenggunaPage() {
       },
       {
         key: "akses_pp",
-        header: "Akses PP",
+        header: "Hak Akses",
         hideOnMobile: true,
         render: (s: UsersAkun) => <span className="whitespace-nowrap">{s.akses_pp || "-"}</span>,
       },
@@ -622,11 +641,18 @@ export default function KelolaPenggunaPage() {
                         </option>
                       );
                     })}
+                    {form.role &&
+                      !roleOptions.some((r) => normalizeRole(r) === normalizeRole(form.role)) && (
+                        <option value={form.role}>
+                          {ROLE_META[normalizeRole(form.role) || "guest"]?.label || form.role} (lama)
+                        </option>
+                      )}
                   </select>
                   <p className="text-[11px] text-gray-500 mt-1">
                     {ROLE_META[normalizeRole(form.role) || "guest"]?.description || ""}
                   </p>
                 </div>
+                {showAkses && (
                 <div>
                   <label className={labelClass}>Akses</label>
                   <select
@@ -646,11 +672,12 @@ export default function KelolaPenggunaPage() {
                     )}
                   </select>
                 </div>
+                )}
 
-                {/* Baris 6 — Akses PP (kondisional) + Status */}
+                {/* Baris 6 — Hak Akses (kondisional) + Status */}
                 {showAksesPp && (
                   <div>
-                    <label className={labelClass}>Akses PP</label>
+                    <label className={labelClass}>Hak Akses</label>
                     <select
                       name="akses_pp"
                       value={form.akses_pp}
@@ -658,7 +685,7 @@ export default function KelolaPenggunaPage() {
                       className={inputClass}
                       required
                     >
-                      <option value="">- Pilih Akses PP -</option>
+                      <option value="">- Pilih Hak Akses -</option>
                       {aksesPpOptions.map((pp) => (
                         <option key={pp} value={pp}>
                           {pp}

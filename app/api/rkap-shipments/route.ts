@@ -1,9 +1,21 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { requireUser, requireWriter } from "@/lib/auth/guard";
-import { canWriteData } from "@/lib/roles";
+import { requireUser, forbidden } from "@/lib/auth/guard";
+import { canWriteData, canManageUsers } from "@/lib/roles";
 import { resolveUserScope, isTargetInScope } from "@/lib/units";
 import type { SessionUser } from "@/lib/auth/session";
+
+/** Halaman & API RKAP hanya untuk Admin / Asisten Admin */
+async function requireRkapAccess() {
+  const auth = await requireUser();
+  if ("error" in auth) return auth;
+  if (!canManageUsers(auth.user.role)) {
+    return { error: forbidden("Halaman RKAP hanya untuk Admin / Asisten Admin.") };
+  }
+  return auth;
+}
+
+
 
 // ============================================================
 // RKAP shipment laut (target per packing plant).
@@ -22,7 +34,7 @@ const outOfScope = (message: string) =>
   NextResponse.json({ ok: false, message }, { status: 403 });
 
 export async function GET() {
-  const auth = await requireUser();
+  const auth = await requireRkapAccess();
   if ("error" in auth) return auth.error;
 
   try {
@@ -42,7 +54,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireWriter();
+  const auth = await requireRkapAccess();
   if ("error" in auth) return auth.error;
 
   try {
@@ -82,7 +94,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const auth = await requireWriter();
+  const auth = await requireRkapAccess();
   if ("error" in auth) return auth.error;
 
   try {
@@ -126,7 +138,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const auth = await requireWriter();
+  const auth = await requireRkapAccess();
   if ("error" in auth) return auth.error;
 
   try {

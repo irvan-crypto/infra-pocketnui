@@ -44,7 +44,14 @@ export const UNIT_DEFINITIONS: UnitDefinition[] = [
     shipmentTargets: [],
     globalTables: ["angkutan_darat", "shipments_darat"],
   },
-  pp("pp-biringkassi", "Packing Plant Biringkassi", "pp-biringkassi", ["packing plant biringkassi", "pp biringkassi", "biringkassi"], ["PP. Biringkassi", "Biringkassi"]),
+  {
+    key: "pp-biringkassi",
+    label: "Biringkassi",
+    aliases: ["packing plant biringkassi", "pp biringkassi", "biringkassi", "pp. biringkassi"],
+    monitoringSlugs: ["silo-pantai", "silo-mini", "pp-biringkassi"],
+    shipmentTargets: ["PP. Biringkassi", "Biringkassi"],
+    globalTables: [],
+  },
 
   pp("pp1-samarinda", "PP1 Samarinda", "pp1-samarinda", ["pp. samarinda", "pp1 samarinda", "samarinda"], ["PP. Samarinda", "PP1 Samarinda"]),
   pp("pp1-balikpapan", "PP1 Balikpapan", "pp1-balikpapan", ["pp. balikpapan", "pp1 balikpapan", "balikpapan"], ["PP. Balikpapan", "PP1 Balikpapan"]),
@@ -92,6 +99,11 @@ export const UNIT_DEFINITIONS: UnitDefinition[] = [
     globalTables: [],
   },
 ];
+
+/** Semua tujuan PP (untuk akses Angkutan Laut) */
+const ALL_SHIPMENT_TARGETS = Array.from(
+  new Set(UNIT_DEFINITIONS.flatMap((u) => u.shipmentTargets))
+);
 
 export interface UnitScope {
   /** true = tidak dibatasi unit (HO / role dengan akses penuh) */
@@ -191,19 +203,26 @@ export function isGlobalTableInScope(scope: UnitScope, table: string): boolean {
 // (unit_kerja tidak lagi menentukan hak CRUD)
 // ============================================================
 
-export const AKSES_SEMUA = "Semua Akses";
+export const AKSES_PLANT_PORT = "Plant & Port Prod";
+export const AKSES_ANGKUTAN_DARAT = "Angkutan Darat";
+export const AKSES_ANGKUTAN_LAUT = "Angkutan Laut";
 export const AKSES_PP1 = "Packing Plant 1";
 export const AKSES_PP2 = "Packing Plant 2";
-export const AKSES_SILO = "Silo";
-export const AKSES_ANGKUTAN_DARAT = "Angkutan Darat";
+
+/** Nilai akses lama (data historis) */
+export const LEGACY_AKSES_SEMUA = "Semua Akses";
+export const LEGACY_AKSES_SILO = "Silo";
 
 export const AKSES_OPTIONS = [
-  AKSES_SEMUA,
+  AKSES_PLANT_PORT,
+  AKSES_ANGKUTAN_DARAT,
+  AKSES_ANGKUTAN_LAUT,
   AKSES_PP1,
   AKSES_PP2,
-  AKSES_SILO,
-  AKSES_ANGKUTAN_DARAT,
 ];
+
+/** Pilihan Hak Akses untuk Akses "Plant & Port Prod" */
+export const HAK_AKSES_PLANT_PORT = ["CP Tonasa", "Biringkassi"];
 
 /** Pilihan Akses PP yang valid untuk sebuah Akses */
 export function getAksesPpOptions(akses: unknown): string[] {
@@ -213,6 +232,9 @@ export function getAksesPpOptions(akses: unknown): string[] {
   }
   if (a === normalizeUnitName(AKSES_PP2)) {
     return UNIT_DEFINITIONS.filter((u) => u.key.startsWith("pp2-")).map((u) => u.label);
+  }
+  if (a === normalizeUnitName(AKSES_PLANT_PORT)) {
+    return [...HAK_AKSES_PLANT_PORT];
   }
   return [];
 }
@@ -230,8 +252,16 @@ export function resolveAccessScope(
   const a = normalizeUnitName(akses);
   if (!a) return NO_SCOPE;
 
-  if (a === normalizeUnitName(AKSES_SEMUA) || a === "semua" || a === "all") {
+  // Nilai lama (kompatibilitas data historis)
+  if (a === normalizeUnitName(LEGACY_AKSES_SEMUA) || a === "semua" || a === "all") {
     return FULL_SCOPE;
+  }
+  if (a === normalizeUnitName(LEGACY_AKSES_SILO)) {
+    return {
+      ...NO_SCOPE,
+      labels: [LEGACY_AKSES_SILO],
+      monitoringSlugs: ["silo-semen", "silo-pantai", "silo-mini", "cp-tonasa"],
+    };
   }
 
   if (requiresAksesPp(akses)) {
@@ -239,19 +269,22 @@ export function resolveAccessScope(
     return unitScope.all ? NO_SCOPE : unitScope;
   }
 
-  if (a === normalizeUnitName(AKSES_SILO)) {
-    return {
-      ...NO_SCOPE,
-      labels: [AKSES_SILO],
-      monitoringSlugs: ["silo-semen", "silo-pantai", "silo-mini", "cp-tonasa"],
-    };
-  }
-
   if (a === normalizeUnitName(AKSES_ANGKUTAN_DARAT)) {
     return {
       ...NO_SCOPE,
       labels: [AKSES_ANGKUTAN_DARAT],
+      // slug agar tombol CRUD di halaman monitoring/angkutan-darat aktif
+      monitoringSlugs: ["angkutan-darat"],
       globalTables: ["angkutan_darat", "shipments_darat"],
+    };
+  }
+
+  // Angkutan Laut: CRUD shipment untuk semua packing plant
+  if (a === normalizeUnitName(AKSES_ANGKUTAN_LAUT)) {
+    return {
+      ...NO_SCOPE,
+      labels: [AKSES_ANGKUTAN_LAUT],
+      shipmentTargets: ALL_SHIPMENT_TARGETS,
     };
   }
 

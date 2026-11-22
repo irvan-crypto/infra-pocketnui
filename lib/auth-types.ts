@@ -10,7 +10,7 @@ export interface AuthUser {
   jabatan?: string;
   unitKerja?: string;
   departemen?: string;
-  /** Akses modul: "Semua Akses" | "Packing Plant 1" | "Packing Plant 2" | "Silo" | "Angkutan Darat" */
+  /** Akses modul: "Plant & Port Prod" | "Angkutan Darat" | "Angkutan Laut" | "Packing Plant 1" | "Packing Plant 2" */
   akses?: string;
   /** Unit PP spesifik (hanya untuk Packing Plant 1/2) */
   aksesPp?: string;

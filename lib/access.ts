@@ -3,14 +3,16 @@ import {
   resolveUserScope,
   isTargetInScope,
   isMonitoringSlugInScope,
+  isGlobalTableInScope,
+  normalizeUnitName,
+  AKSES_PLANT_PORT,
+  AKSES_ANGKUTAN_LAUT,
   type UnitScope,
 } from "./units";
 import type { AuthUser } from "./auth-types";
 
 // ============================================================
 // ATURAN AKSES HALAMAN (dipakai Sidebar + guard ClientLayout)
-// Semua role yang login boleh MELIHAT modul data.
-// Halaman sistem (kelola pengguna, db status) hanya admin.
 // ============================================================
 
 export interface RouteRule {
@@ -19,10 +21,38 @@ export interface RouteRule {
   roles: Role[];
 }
 
+/** Halaman sistem — role di luar daftar ini tidak boleh masuk */
 export const RESTRICTED_ROUTES: RouteRule[] = [
   { prefix: "/kelola-pengguna", label: "Kelola Pengguna", roles: ["admin", "asisten_admin"] },
   { prefix: "/db-status", label: "DB Status", roles: ["admin", "asisten_admin"] },
+  { prefix: "/monitoring/semua-silo", label: "Semua Silo", roles: ["admin"] },
+  { prefix: "/rkap", label: "RKAP", roles: ["admin", "asisten_admin"] },
 ];
+
+/** Role yang boleh membuka halaman Profil */
+export const PROFILE_ROLES: Role[] = [
+  "admin",
+  "asisten_admin",
+  "general_manager",
+  "senior_manager",
+  "manager",
+  "direksi",
+  "operator",
+  "staff",
+];
+
+/** Role yang boleh melihat semua halaman data (selain halaman sistem di atas) */
+const FULL_VIEW_ROLES: Role[] = [
+  "admin",
+  "asisten_admin",
+  "general_manager",
+  "senior_manager",
+  "manager",
+  "direksi",
+];
+
+/** Role yang hanya boleh Dashboard + Ringkasan Monitoring (+ Profil untuk staff) */
+const BASIC_ROLES: Role[] = ["staff", "guest"];
 
 export function getRouteRule(pathname: string): RouteRule | null {
   return (
@@ -32,11 +62,76 @@ export function getRouteRule(pathname: string): RouteRule | null {
   );
 }
 
-export function canAccessPath(role: unknown, pathname: string): boolean {
+/** Normalisasi path: buang query/hash & garis miring di akhir */
+function cleanPath(pathname: string): string {
+  const path = String(pathname || "/").split("?")[0].split("#")[0];
+  if (path.length > 1 && path.endsWith("/")) return path.replace(/\/+$/, "");
+  return path || "/";
+}
+
+/**
+ * Boleh membuka halaman ini?
+ * `user` dibutuhkan untuk operator (akses/akses_pp menentukan unit).
+ */
+export function canAccessPath(
+  role: unknown,
+  pathname: string,
+  user?: { akses?: string | null; aksesPp?: string | null } | null
+): boolean {
   const r = normalizeRole(role);
   if (!r) return false;
-  const rule = getRouteRule(pathname);
-  return rule ? rule.roles.includes(r) : true;
+
+  const path = cleanPath(pathname);
+
+  // Halaman yang sudah dihapus
+  if (path === "/shipments" || path.startsWith("/shipments/")) return false;
+  if (path.startsWith("/interplant-logistic")) return false;
+
+  // Profil: semua role kecuali guest
+  if (path === "/profil") return PROFILE_ROLES.includes(r);
+
+  // Halaman sistem
+  const rule = getRouteRule(path);
+  if (rule) return rule.roles.includes(r);
+
+  // Root (redirect ke dashboard)
+  if (path === "/") return true;
+
+  // Admin, Asisten Admin, GM, SM, Manager, Direksi: semua halaman data
+  if (FULL_VIEW_ROLES.includes(r)) return true;
+
+  // Ringkasan monitoring (semua role)
+  if (path === "/monitoring") return true;
+
+  // Dashboard (semua role)
+  if (path === "/dashboard" || path.startsWith("/dashboard/")) return true;
+
+  // Staff & Guest: hanya dashboard + ringkasan monitoring
+  if (BASIC_ROLES.includes(r)) return false;
+
+  // Operator: halaman unitnya sendiri + angkutan laut + stok harian (view-only)
+  if (r === "operator") {
+    const scope = resolveUserScope(r, user?.akses, user?.aksesPp);
+    const akses = normalizeUnitName(user?.akses);
+    const slug = path.match(/^\/monitoring\/([a-z0-9-]+)$/)?.[1];
+    if (!slug) return false;
+
+    if (slug === "angkutan-darat") return isGlobalTableInScope(scope, "angkutan_darat");
+    if (slug === "angkutan-laut") {
+      return (
+        scope.all ||
+        akses === normalizeUnitName(AKSES_ANGKUTAN_LAUT) ||
+        scope.labels.includes(AKSES_ANGKUTAN_LAUT)
+      );
+    }
+    // Stok harian: operator Plant & Port Prod boleh melihat (view-only)
+    if (slug === "silo-semen") {
+      return scope.all || akses === normalizeUnitName(AKSES_PLANT_PORT);
+    }
+    return isMonitoringSlugInScope(scope, slug);
+  }
+
+  return false;
 }
 
 // ============================================================

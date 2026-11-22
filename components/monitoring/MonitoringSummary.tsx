@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Warehouse, Factory, Truck, Package } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
+import { useAuth } from "@/contexts/AuthContext";
+import { canAccessPath } from "@/lib/access";
 import ExpediturSummaryCards, {
   type ExpediturSummary,
 } from "@/components/monitoring/ExpediturSummaryCards";
@@ -62,6 +64,10 @@ function StatCard({
 }
 
 export default function MonitoringSummary() {
+  const { user } = useAuth();
+  /** Href hanya aktif bila role boleh membuka halamannya */
+  const linkIf = (href: string) => (canAccessPath(user?.role, href, user) ? href : undefined);
+
   const [latest, setLatest] = useState<Record<string, Row | null>>({});
   const [loading, setLoading] = useState(true);
 
@@ -143,11 +149,14 @@ export default function MonitoringSummary() {
       {
         key: "lokasi",
         header: "Lokasi",
-        render: (r: any) => (
-          <Link href={`/monitoring/${r.id}`} className="font-semibold text-blue-600 hover:underline">
-            {r.lokasi}
-          </Link>
-        ),
+        render: (r: any) =>
+          canAccessPath(user?.role, `/monitoring/${r.id}`, user) ? (
+            <Link href={`/monitoring/${r.id}`} className="font-semibold text-blue-600 hover:underline">
+              {r.lokasi}
+            </Link>
+          ) : (
+            <span className="font-semibold text-gray-700">{r.lokasi}</span>
+          ),
       },
       {
         key: "grup",
@@ -182,7 +191,8 @@ export default function MonitoringSummary() {
         render: (r: any) => <span className="tabular-nums font-semibold">{r.stok === null ? "-" : formatMonitoringNumber(r.stok)}</span>,
       },
     ],
-    []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user]
   );
 
   if (loading) {
@@ -213,7 +223,7 @@ export default function MonitoringSummary() {
           value={totalSilo === null ? "-" : formatMonitoringNumber(totalSilo)}
           suffix="ton"
           footer={silo ? `Per ${formatTanggalPanjang(silo.tanggal)} (10 silo)` : "Belum ada data"}
-          href="/monitoring/silo-semen"
+          href={linkIf("/monitoring/silo-semen")}
           icon={<Warehouse size={20} />}
         />
         <StatCard
@@ -221,7 +231,7 @@ export default function MonitoringSummary() {
           value={totalPantai === null ? "-" : formatMonitoringNumber(totalPantai)}
           suffix="ton"
           footer={pantai ? `Per ${formatTanggalPanjang(pantai.tanggal)} (10 silo)` : "Belum ada data"}
-          href="/monitoring/silo-pantai"
+          href={linkIf("/monitoring/silo-pantai")}
           icon={<Warehouse size={20} />}
         />
         <StatCard
@@ -229,7 +239,7 @@ export default function MonitoringSummary() {
           value={birk ? formatMonitoringNumber(birk.stok_opc) : "-"}
           suffix="ton"
           footer={birk ? `Per ${formatTanggalPanjang(birk.tanggal)}` : "Belum ada data"}
-          href="/monitoring/pp-biringkassi"
+          href={linkIf("/monitoring/pp-biringkassi")}
           icon={<Factory size={20} />}
         />
         <StatCard
@@ -237,7 +247,7 @@ export default function MonitoringSummary() {
           value={birk ? formatMonitoringNumber(birk.stok_pcc) : "-"}
           suffix="ton"
           footer={birk ? `Per ${formatTanggalPanjang(birk.tanggal)}` : "Belum ada data"}
-          href="/monitoring/pp-biringkassi"
+          href={linkIf("/monitoring/pp-biringkassi")}
           icon={<Factory size={20} />}
         />
         <StatCard
@@ -245,7 +255,7 @@ export default function MonitoringSummary() {
           value={mini ? formatMonitoringNumber(mini.stok_opc) : "-"}
           suffix="ton"
           footer={mini ? `Per ${formatTanggalPanjang(mini.tanggal)}` : "Belum ada data"}
-          href="/monitoring/silo-mini"
+          href={linkIf("/monitoring/silo-mini")}
           icon={<Package size={20} />}
         />
       </div>
@@ -253,9 +263,11 @@ export default function MonitoringSummary() {
       {/* CP Tonasa terbaru */}
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">CP Tonasa — Data Terbaru</h2>
-        <Link href="/monitoring/cp-tonasa" className="text-xs font-medium text-blue-600 hover:underline inline-flex items-center gap-1">
-          Lihat semua <ArrowRight size={12} />
-        </Link>
+        {linkIf("/monitoring/cp-tonasa") && (
+          <Link href="/monitoring/cp-tonasa" className="text-xs font-medium text-blue-600 hover:underline inline-flex items-center gap-1">
+            Lihat semua <ArrowRight size={12} />
+          </Link>
+        )}
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
@@ -287,9 +299,11 @@ export default function MonitoringSummary() {
       {/* Angkutan darat terbaru */}
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Angkutan Darat — Data Terbaru</h2>
-        <Link href="/monitoring/angkutan-darat" className="text-xs font-medium text-blue-600 hover:underline inline-flex items-center gap-1">
-          Lihat semua <ArrowRight size={12} />
-        </Link>
+        {linkIf("/monitoring/angkutan-darat") && (
+          <Link href="/monitoring/angkutan-darat" className="text-xs font-medium text-blue-600 hover:underline inline-flex items-center gap-1">
+            Lihat semua <ArrowRight size={12} />
+          </Link>
+        )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <StatCard
@@ -322,9 +336,11 @@ export default function MonitoringSummary() {
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
           Ringkasan Expeditur — MTD & Harian
         </h2>
-        <Link href="/monitoring/angkutan-darat" className="text-xs font-medium text-blue-600 hover:underline inline-flex items-center gap-1">
-          Lihat semua <ArrowRight size={12} />
-        </Link>
+        {linkIf("/monitoring/angkutan-darat") && (
+          <Link href="/monitoring/angkutan-darat" className="text-xs font-medium text-blue-600 hover:underline inline-flex items-center gap-1">
+            Lihat semua <ArrowRight size={12} />
+          </Link>
+        )}
       </div>
       <div className="mb-6">
         <ExpediturSummaryCards />

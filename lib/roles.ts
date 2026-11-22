@@ -10,7 +10,9 @@ export const ROLES = [
   "general_manager",
   "senior_manager",
   "manager",
+  "direksi",
   "operator",
+  "staff",
   "guest",
 ] as const;
 
@@ -70,6 +72,14 @@ export const ROLE_META: Record<Role, RoleMeta> = {
     description: "Melihat semua modul tanpa hak ubah.",
     viewOnly: true,
   },
+  direksi: {
+    label: "Direksi",
+    short: "Dir",
+    icon: "🏛️",
+    badge: "bg-violet-50 text-violet-700",
+    description: "Melihat semua modul (tanpa RKAP) tanpa hak ubah.",
+    viewOnly: true,
+  },
   operator: {
     label: "Operator",
     short: "Ops",
@@ -77,6 +87,14 @@ export const ROLE_META: Record<Role, RoleMeta> = {
     badge: "bg-emerald-50 text-emerald-700",
     description: "CRUD data sesuai unit kerja.",
     viewOnly: false,
+  },
+  staff: {
+    label: "Staff",
+    short: "Staff",
+    icon: "🧑‍💼",
+    badge: "bg-slate-100 text-slate-700",
+    description: "Melihat dashboard & ringkasan monitoring.",
+    viewOnly: true,
   },
   guest: {
     label: "Guest",
@@ -128,8 +146,14 @@ const ROLE_ALIASES: Record<string, Role> = {
   sm: "senior_manager",
   manager: "manager",
   mgr: "manager",
+  direksi: "direksi",
+  direktur: "direksi",
+  director: "direksi",
+  board: "direksi",
   operator: "operator",
   ops: "operator",
+  staff: "staff",
+  staf: "staff",
   guest: "guest",
   // role lama (sebelum standarisasi)
   viewer: "guest",

@@ -10,15 +10,15 @@ import bcrypt from "bcryptjs";
 // ============================================================
 
 const SEED_USERS = [
-  { nama_lengkap: "Admin Utama", username: "admin", role: "admin", jabatan: "Direktur", unit_kerja: "Head Office", departemen: "IT", akses: "Semua Akses", akses_pp: null },
-  { nama_lengkap: "Asisten Admin", username: "asisten_admin", role: "asisten_admin", jabatan: "Asisten Admin", unit_kerja: "Head Office", departemen: "IT", akses: "Semua Akses", akses_pp: null },
-  { nama_lengkap: "General Manager", username: "general_manager", role: "general_manager", jabatan: "General Manager", unit_kerja: "Head Office", departemen: "Operasional", akses: "Semua Akses", akses_pp: null },
-  { nama_lengkap: "Senior Manager", username: "senior_manager", role: "senior_manager", jabatan: "Senior Manager", unit_kerja: "Head Office", departemen: "Operasional", akses: "Semua Akses", akses_pp: null },
-  { nama_lengkap: "Manager Operasional", username: "manager", role: "manager", jabatan: "Manager", unit_kerja: "Head Office", departemen: "Operasional", akses: "Semua Akses", akses_pp: null },
-  { nama_lengkap: "Supervisor Operasional", username: "supervisor", role: "operator", jabatan: "Supervisor", unit_kerja: "Head Office", departemen: "Operasional", akses: "Semua Akses", akses_pp: null },
+  { nama_lengkap: "Admin Utama", username: "admin", role: "admin", jabatan: "Direktur", unit_kerja: "Head Office", departemen: "IT", akses: "Plant & Port Prod", akses_pp: null },
+  { nama_lengkap: "Asisten Admin", username: "asisten_admin", role: "asisten_admin", jabatan: "Asisten Admin", unit_kerja: "Head Office", departemen: "IT", akses: "Plant & Port Prod", akses_pp: null },
+  { nama_lengkap: "General Manager", username: "general_manager", role: "general_manager", jabatan: "General Manager", unit_kerja: "Head Office", departemen: "Operasional", akses: "Plant & Port Prod", akses_pp: null },
+  { nama_lengkap: "Senior Manager", username: "senior_manager", role: "senior_manager", jabatan: "Senior Manager", unit_kerja: "Head Office", departemen: "Operasional", akses: "Plant & Port Prod", akses_pp: null },
+  { nama_lengkap: "Manager Operasional", username: "manager", role: "manager", jabatan: "Manager", unit_kerja: "Head Office", departemen: "Operasional", akses: "Plant & Port Prod", akses_pp: null },
+  { nama_lengkap: "Supervisor Operasional", username: "supervisor", role: "operator", jabatan: "Supervisor", unit_kerja: "Head Office", departemen: "Operasional", akses: "Plant & Port Prod", akses_pp: null },
   { nama_lengkap: "Operator Palu", username: "operator_palu", role: "operator", jabatan: "Koordinator", unit_kerja: "PP. Palu", departemen: "Operasional", akses: "Packing Plant 1", akses_pp: "PP1 Palu" },
   { nama_lengkap: "Operator Bitung", username: "operator_bitung", role: "operator", jabatan: "Koordinator", unit_kerja: "PP. Bitung", departemen: "Operasional", akses: "Packing Plant 2", akses_pp: "PP2 Bitung" },
-  { nama_lengkap: "Guest Palu", username: "guest_palu", role: "guest", jabatan: "Staff", unit_kerja: "PP. Palu", departemen: "Operasional", akses: "Semua Akses", akses_pp: null },
+  { nama_lengkap: "Guest Palu", username: "guest_palu", role: "guest", jabatan: "Staff", unit_kerja: "PP. Palu", departemen: "Operasional", akses: "Plant & Port Prod", akses_pp: null },
 ] as const;
 
 export async function POST() {

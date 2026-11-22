@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell, Menu, LogOut, ChevronDown, UserCircle } from "lucide-react";
 import NotifToggle from "@/components/NotifToggle";
 import { useAuth } from "@/contexts/AuthContext";
+import { canAccessPath } from "@/lib/access";
 import { roleBadgeClass, roleLabel } from "@/lib/utils";
 
 interface Props {
@@ -17,6 +18,8 @@ export default function Header({ onMobileMenu, pendingCount = 0 }: Props) {
   const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Guest: tanpa halaman profil & notifikasi, hanya Logout
+  const canOpenProfile = canAccessPath(user?.role, "/profil", user);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -93,17 +96,21 @@ export default function Header({ onMobileMenu, pendingCount = 0 }: Props) {
                   {roleLabel(user.role)}
                 </span>
               </div>
-              <Link
-                href="/profil"
-                onClick={() => setDropdownOpen(false)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <UserCircle size={16} />
-                <span>Profil</span>
-              </Link>
-              <div className="px-2">
-                <NotifToggle />
-              </div>
+              {canOpenProfile && (
+                <Link
+                  href="/profil"
+                  onClick={() => setDropdownOpen(false)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <UserCircle size={16} />
+                  <span>Profil</span>
+                </Link>
+              )}
+              {canOpenProfile && (
+                <div className="px-2">
+                  <NotifToggle />
+                </div>
+              )}
               <button
                 onClick={logout}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"

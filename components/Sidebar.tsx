@@ -81,14 +81,18 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     [collapsed]
   );
 
-  // Menu terbatas (Kelola Pengguna, DB Status) hanya untuk role tertentu
-  const menuItems = useMemo(
-    () =>
-      MENU.filter(
-        (item) => !item.restricted || canAccessPath(user?.role, getItemHref(item) || "")
-      ),
-    [user?.role]
-  );
+  // Menu difilter sesuai hak akses role (halaman & anak menu)
+  const menuItems = useMemo(() => {
+    const canOpen = (href: string) => canAccessPath(user?.role, href, user);
+
+    return MENU.map((item) =>
+      item.children
+        ? { ...item, children: item.children.filter((child) => canOpen(child.href)) }
+        : item
+    ).filter((item) =>
+      item.children ? item.children.length > 0 : canOpen(getItemHref(item) || "")
+    );
+  }, [user]);
 
   if (!user) return null;
 

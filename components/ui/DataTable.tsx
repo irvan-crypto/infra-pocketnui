@@ -30,6 +30,8 @@ interface Props<T> {
   searchValue?: string;
   /** Sembunyikan header internal DataTable (title + search + actions). */
   hideHeader?: boolean;
+  /** Baris tambahan di bawah tabel (mis. subtotal). Ditampilkan dalam <tfoot>. */
+  footer?: ReactNode;
 }
 
 const ROWS_OPTIONS = [10, 20, 30, 50, 100];
@@ -47,6 +49,7 @@ export default function DataTable<T>({
   onSearchChange,
   searchValue,
   hideHeader = false,
+  footer,
 }: Props<T>) {
   const [internalSearch, setInternalSearch] = useState("");
   const isControlledSearch = searchValue !== undefined;
@@ -300,6 +303,15 @@ export default function DataTable<T>({
               ))
             )}
           </tbody>
+          {footer && (
+            <tfoot>
+              <tr className="border-t-2 border-gray-200 bg-gray-50">
+                <td colSpan={columns.length} className="px-3 sm:px-4 lg:px-5 py-3">
+                  {footer}
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 

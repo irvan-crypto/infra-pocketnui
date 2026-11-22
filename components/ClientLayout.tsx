@@ -39,7 +39,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
 
   // Guard halaman: role yang tidak berhak tidak pernah melihat kontennya
   const rule = getRouteRule(pathname);
-  const allowed = canAccessPath(user?.role, pathname);
+  const allowed = canAccessPath(user?.role, pathname, user);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

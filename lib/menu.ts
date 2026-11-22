@@ -7,13 +7,14 @@ import {
   Users,
   Database,
   Cylinder,
-  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
 export interface MenuChild {
   title: string;
   href: string;
+  /** true = hanya role tertentu (lihat RESTRICTED_ROUTES di lib/access.ts) */
+  restricted?: boolean;
 }
 
 export interface MenuItem {
@@ -46,26 +47,20 @@ export const MENU: MenuItem[] = [
       { title: "Silo Pantai", href: "/monitoring/silo-pantai" },
       { title: "CP Tonasa", href: "/monitoring/cp-tonasa" },
       { title: "Silo Mini", href: "/monitoring/silo-mini" },
-    ],
-  },
-  {
-    title: "Packing Plant",
-    icon: Factory,
-    children: [
       { title: "PP Biringkassi", href: "/monitoring/pp-biringkassi" },
+      { title: "Semua Silo", href: "/monitoring/semua-silo", restricted: true },
     ],
   },
   {
     title: "Interplant Logistic",
     icon: Truck,
     children: [
-      { title: "Shipment Laut", href: "/interplant-logistic/shipment-laut" },
-      { title: "Angkutan Darat (Expeditur)", href: "/monitoring/angkutan-darat" },
-      { title: "Angkutan Laut", href: "/monitoring/angkutan-laut" }
+      { title: "Angkutan Darat", href: "/monitoring/angkutan-darat" },
+      { title: "Angkutan Laut", href: "/monitoring/angkutan-laut" },
     ],
   },
   {
-    title: "PP1 Cabang",
+    title: "Packing Plant 1",
     icon: Factory,
     children: [
       { title: "Samarinda", href: "/monitoring/pp1-samarinda" },
@@ -77,7 +72,7 @@ export const MENU: MenuItem[] = [
     ],
   },
   {
-    title: "PP2 Cabang",
+    title: "Packing Plant 2",
     icon: Factory,
     children: [
       { title: "Bitung", href: "/monitoring/pp2-bitung" },

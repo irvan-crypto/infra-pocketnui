@@ -48,8 +48,13 @@ export async function GET() {
       if (row.akses_pp) aksesPpFromDb.get(akses)!.add(row.akses_pp);
     }
 
-    // Urutkan role sesuai urutan resmi, akses sesuai AKSES_OPTIONS
-    const roles = ROLES.filter((r) => roleSet.has(r));
+    // Urutkan role sesuai urutan resmi, akses sesuai AKSES_OPTIONS.
+    // Role Admin & Asisten Admin hanya ditampilkan untuk pengguna ber-role Admin.
+    const isAdmin = normalizeRole(auth.user.role) === "admin";
+    const roles = ROLES.filter(
+      (r) =>
+        roleSet.has(r) && (isAdmin || (r !== "admin" && r !== "asisten_admin"))
+    );
     const aksesOrder = (value: string) => {
       const idx = AKSES_OPTIONS.indexOf(value);
       return idx === -1 ? AKSES_OPTIONS.length : idx;

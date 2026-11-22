@@ -31,9 +31,12 @@ function forbidden(message: string) {
 
 /** Asisten Admin tidak boleh menyentuh akun Admin */
 function canManageTarget(session: SessionUser, targetRole: unknown): boolean {
-  if (session.role === "asisten_admin" && normalizeRole(targetRole) === "admin") {
+  const target = normalizeRole(targetRole);
+  // Role Admin & Asisten Admin hanya boleh diberikan oleh Admin
+  if ((target === "admin" || target === "asisten_admin") && session.role !== "admin") {
     return false;
   }
+  if (session.role === "asisten_admin" && target === "admin") return false;
   return true;
 }
 
@@ -47,17 +50,18 @@ function validatePayload(body: Record<string, any>, isCreate: boolean): string |
   if (!username) return "Username wajib diisi";
   if (!role || !VALID_ROLES.includes(role)) return "Role tidak valid";
 
-  const akses = String(body.akses ?? "").trim();
-  if (!akses || !VALID_AKSES.includes(akses)) return "Akses tidak valid";
+  // Akses & Hak Akses hanya relevan untuk Operator
+  if (role === "operator") {
+    const akses = String(body.akses ?? "").trim();
+    if (!akses || !VALID_AKSES.includes(akses)) return "Akses tidak valid";
 
-  if (requiresAksesPp(akses)) {
-    const aksesPp = String(body.akses_pp ?? "").trim();
-    if (!aksesPp || !getAksesPpOptions(akses).includes(aksesPp)) {
-      return `Akses PP wajib dipilih untuk ${akses}`;
+    if (requiresAksesPp(akses)) {
+      const aksesPp = String(body.akses_pp ?? "").trim();
+      if (!aksesPp || !getAksesPpOptions(akses).includes(aksesPp)) {
+        return `Hak Akses wajib dipilih untuk ${akses}`;
+      }
     }
   }
-
-  if (role === "operator" && !akses) return "Operator wajib memiliki akses";
 
   const status = String(body.status ?? "Aktif").trim();
   if (!VALID_STATUS.includes(status)) return "Status tidak valid";
@@ -76,7 +80,8 @@ function validatePayload(body: Record<string, any>, isCreate: boolean): string |
 }
 
 function buildPayload(body: Record<string, any>) {
-  const akses = String(body.akses ?? "").trim();
+  const role = normalizeRole(body.role);
+  const akses = role === "operator" ? String(body.akses ?? "").trim() : "";
   return {
     nama_lengkap: String(body.nama_lengkap ?? "").trim(),
     email: body.email ? String(body.email).trim() : null,
@@ -85,8 +90,8 @@ function buildPayload(body: Record<string, any>) {
     unit_kerja: body.unit_kerja ? String(body.unit_kerja).trim() : null,
     departemen: body.departemen ? String(body.departemen).trim() : null,
     username: String(body.username ?? "").trim(),
-    role: normalizeRole(body.role),
-    akses,
+    role,
+    akses: akses || null,
     akses_pp: requiresAksesPp(akses)
       ? String(body.akses_pp ?? "").trim() || null
       : null,
@@ -193,7 +198,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: false, message: problem }, { status: 400 });
     }
     if (!canManageTarget(auth.user, body.role)) {
-      return forbidden("Asisten Admin tidak dapat memberikan role Admin.");
+      return forbidden("Role Admin & Asisten Admin hanya dapat diberikan oleh Admin.");
     }
 
     const payload = buildPayload(body);
