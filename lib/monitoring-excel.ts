@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { MonitoringTableConfig } from "./monitoring-config";
+import { SAMPLE_COLUMN, SAMPLE_VALUE, isSampleRow } from "./excel-sample";
 
 // ============================================================
 // Template & parser Excel untuk halaman monitoring.
@@ -40,14 +41,24 @@ function labelToKeyMap(config: MonitoringTableConfig): Map<string, string> {
   return map;
 }
 
-/** Generate & download template .xlsx (1 baris, tanggal kemarin) */
+/** Generate & download template .xlsx (1 baris contoh bertanda "Contoh" = YA) */
 export function downloadTemplate(config: MonitoringTableConfig): void {
   const fields = config.fields.filter((f) => !f.generated && !f.virtual);
-  const headers = [HEADER_TANGGAL, ...fields.map((f) => f.label)];
+  const headers = [HEADER_TANGGAL, ...fields.map((f) => f.label), SAMPLE_COLUMN];
   const tgl = yesterdayISO();
 
-  const ws = XLSX.utils.aoa_to_sheet([headers, [tgl, ...fields.map(() => "")]]);
-  ws["!cols"] = [{ wch: 14 }, ...fields.map((f) => ({ wch: Math.max(12, f.label.length + 2) }))];
+  const sampleRow = [
+    tgl,
+    ...fields.map((f) => (f.type === "number" ? 1250.5 : "")),
+    SAMPLE_VALUE,
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
+  ws["!cols"] = [
+    { wch: 14 },
+    ...fields.map((f) => ({ wch: Math.max(12, f.label.length + 2) })),
+    { wch: 10 },
+  ];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, config.title.slice(0, 31));
@@ -62,6 +73,8 @@ export interface ParsedRow {
 export interface ParseResult {
   rows: ParsedRow[];
   errors: string[];
+  /** Jumlah baris contoh dari template yang otomatis dilewati */
+  samplesSkipped: number;
 }
 
 /** Normalisasi tanggal: Date | serial Excel | "YYYY-MM-DD" | "DD/MM/YYYY" */
@@ -116,6 +129,7 @@ export async function parseTemplateFile(
 ): Promise<ParseResult> {
   const errors: string[] = [];
   const rows: ParsedRow[] = [];
+  let samplesSkipped = 0;
 
   const buf = await file.arrayBuffer();
   let json: Record<string, unknown>[];
@@ -123,22 +137,28 @@ export async function parseTemplateFile(
     const wb = XLSX.read(buf, { type: "array", cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
     if (!ws) {
-      return { rows, errors: ["File Excel tidak memiliki sheet yang bisa dibaca."] };
+      return { rows, errors: ["File Excel tidak memiliki sheet yang bisa dibaca."], samplesSkipped };
     }
     json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null });
   } catch {
-    return { rows, errors: ["File tidak bisa dibaca. Pastikan format .xlsx sesuai template."] };
+    return { rows, errors: ["File tidak bisa dibaca. Pastikan format .xlsx sesuai template."], samplesSkipped };
   }
 
   if (json.length === 0) {
     errors.push("File kosong — tidak ada baris data.");
-    return { rows, errors };
+    return { rows, errors, samplesSkipped };
   }
 
   const map = labelToKeyMap(config);
 
   json.forEach((raw, idx) => {
     const rowNo = idx + 2; // +1 baris header, +1 basis hitung manusia
+
+    // Baris contoh dari template: jangan pernah masuk database
+    if (isSampleRow(raw)) {
+      samplesSkipped += 1;
+      return;
+    }
 
     // Petakan header -> key database
     const mapped: Record<string, unknown> = {};
@@ -207,5 +227,5 @@ export async function parseTemplateFile(
     errors.push("Tidak ada baris valid yang bisa diimport.");
   }
 
-  return { rows, errors };
+  return { rows, errors, samplesSkipped };
 }

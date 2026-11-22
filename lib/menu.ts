@@ -61,6 +61,7 @@ export const MENU: MenuItem[] = [
     children: [
       { title: "Shipment Laut", href: "/interplant-logistic/shipment-laut" },
       { title: "Angkutan Darat (Expeditur)", href: "/monitoring/angkutan-darat" },
+      { title: "Angkutan Laut", href: "/monitoring/angkutan-laut" }
     ],
   },
   {

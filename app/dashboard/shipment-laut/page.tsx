@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ShipmentMap from "@/components/dashboard/ShipmentMap";
 import DataTable from "@/components/ui/DataTable";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Ship, Anchor, Navigation, Factory } from "lucide-react";
 import { SHIP_STATUS_ORDER, SHIP_STATUS_LABELS, type ShipStatusKey } from "@/lib/app-config";
 import { formatDateIndonesian } from "@/lib/utils";
 
@@ -186,17 +186,103 @@ export default function ShipmentLautPage() {
     return Array.from(map.values());
   }, [shipments]);
 
-  const stats = useMemo(() => {
-    const total = mapShipments.length;
-    let inProgress = 0;
-    let completed = 0;
-    for (const s of mapShipments) {
-      const { status } = getLatestStatus(s);
-      if (status === "ta_pp") completed++;
-      else inProgress++;
+  // Kartu ringkasan: total muatan & jumlah kapal unik per status terakhir.
+  // Status terakhir = kolom status terakhir yang terisi (urutan SHIP_STATUS_ORDER).
+  const statusTotals = useMemo(() => {
+    const bucket = () => ({
+      ton: 0,
+      kapal: new Set<string>(),
+      bks: 0,
+      tuban: 0,
+      bksKapal: new Set<string>(),
+      tubanKapal: new Set<string>(),
+    });
+    const out = {
+      berlabuh: bucket(),
+      belumBerangkat: bucket(),
+      perjalanan: bucket(),
+      tibaPp: bucket(),
+    };
+    const BELUM = ["sandar", "muat", "selesai_muat"];
+
+    for (const row of shipments) {
+      let status: string | null = null;
+      for (let i = SHIP_STATUS_ORDER.length - 1; i >= 0; i--) {
+        const key = SHIP_STATUS_ORDER[i];
+        if (row[key as keyof Shipment]) {
+          status = key;
+          break;
+        }
+      }
+      if (!status) continue;
+
+      let target: "berlabuh" | "belumBerangkat" | "perjalanan" | "tibaPp";
+      if (status === "ta_tiba") target = "berlabuh";
+      else if (BELUM.includes(status)) target = "belumBerangkat";
+      else if (status === "td_pelabuhan") target = "perjalanan";
+      else target = "tibaPp";
+
+      const ton = Number(row.muatan_ton || 0);
+      const vessel = String(row.nama_kapal ?? "").trim().toLowerCase() || "-";
+      const port = String(row.pelabuhan_asal ?? "").toLowerCase();
+
+      out[target].ton += ton;
+      out[target].kapal.add(vessel);
+      if (port.includes("biringkassi")) {
+        out[target].bks += ton;
+        out[target].bksKapal.add(vessel);
+      } else if (port.includes("tuban")) {
+        out[target].tuban += ton;
+        out[target].tubanKapal.add(vessel);
+      }
     }
-    return { total, inProgress, completed };
-  }, [mapShipments]);
+    return out;
+  }, [shipments]);
+
+  type StatusCardItem = [string, number, number, number, number, number, number, React.ReactNode];
+
+  const statusCards: StatusCardItem[] = [
+    [
+      "Kapal Berlabuh",
+      statusTotals.berlabuh.ton,
+      statusTotals.berlabuh.kapal.size,
+      statusTotals.berlabuh.bks,
+      statusTotals.berlabuh.bksKapal.size,
+      statusTotals.berlabuh.tuban,
+      statusTotals.berlabuh.tubanKapal.size,
+      <Ship key="sb" size={18} className="text-blue-600" />,
+    ],
+    [
+      "Kapal Belum Berangkat",
+      statusTotals.belumBerangkat.ton,
+      statusTotals.belumBerangkat.kapal.size,
+      statusTotals.belumBerangkat.bks,
+      statusTotals.belumBerangkat.bksKapal.size,
+      statusTotals.belumBerangkat.tuban,
+      statusTotals.belumBerangkat.tubanKapal.size,
+      <Anchor key="ab" size={18} className="text-amber-600" />,
+    ],
+    [
+      "Kapal Di Perjalanan",
+      statusTotals.perjalanan.ton,
+      statusTotals.perjalanan.kapal.size,
+      statusTotals.perjalanan.bks,
+      statusTotals.perjalanan.bksKapal.size,
+      statusTotals.perjalanan.tuban,
+      statusTotals.perjalanan.tubanKapal.size,
+      <Navigation key="np" size={18} className="text-indigo-600" />,
+    ],
+    [
+      "Kapal Tiba Packing Plant",
+      statusTotals.tibaPp.ton,
+      statusTotals.tibaPp.kapal.size,
+      statusTotals.tibaPp.bks,
+      statusTotals.tibaPp.bksKapal.size,
+      statusTotals.tibaPp.tuban,
+      statusTotals.tibaPp.tubanKapal.size,
+      <Factory key="fp" size={18} className="text-emerald-600" />,
+    ],
+  ];
 
   if (loading) {
     return (
@@ -262,19 +348,34 @@ export default function ShipmentLautPage() {
 
   return (
     <div className="w-full flex flex-col gap-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Kapal</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{stats.total}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Dalam Perjalanan</p>
-          <p className="mt-1 text-2xl font-bold text-amber-600">{stats.inProgress}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Selesai (TA. PP)</p>
-          <p className="mt-1 text-2xl font-bold text-green-600">{stats.completed}</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {statusCards.map(([label, value, kapal, bks, bksKapal, tuban, tubanKapal, icon]) => (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4" key={label}>
+            {icon}
+            <div className="mt-2 flex items-start justify-between gap-2">
+              <p className="text-xs text-gray-500">{label}</p>
+              <div className="text-right">
+                <p className="text-[11px] sm:text-xs font-semibold text-gray-700 whitespace-nowrap">
+                  {kapal.toLocaleString("id-ID")} kapal
+                </p>
+                {bks > 0 && (
+                  <p className="text-[10px] text-gray-500 whitespace-nowrap">
+                    BKS - {Math.round(bks).toLocaleString("id-ID")} ({bksKapal.toLocaleString("id-ID")})
+                  </p>
+                )}
+                {tuban > 0 && (
+                  <p className="text-[10px] text-gray-500 whitespace-nowrap">
+                    Tuban - {Math.round(tuban).toLocaleString("id-ID")} ({tubanKapal.toLocaleString("id-ID")})
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="text-xl font-bold text-gray-800">
+              {Math.round(value).toLocaleString("id-ID")}{" "}
+              <span className="text-xs font-medium text-gray-400">ton</span>
+            </p>
+          </div>
+        ))}
       </div>
 
       <div className="w-full flex flex-col gap-4">

@@ -8,6 +8,7 @@ import DataTable from "@/components/ui/DataTable";
 import { Download, Edit3, Factory, FileText, Plus, Trash2, X, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 import { getPermissions, canEditRkapRow } from "@/lib/access";
+import { SAMPLE_COLUMN, SAMPLE_VALUE, isSampleRow, sampleDateISO } from "@/lib/excel-sample";
 
 interface RkapShipmentRow {
   id: string;
@@ -87,6 +88,7 @@ export default function RkapShipmentLautPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
   const [uploadMessage, setUploadMessage] = useState("");
+  const [dragOverUpload, setDragOverUpload] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedPackingPlant, setSelectedPackingPlant] = useState<string | null>(null);
@@ -363,10 +365,23 @@ export default function RkapShipmentLautPage() {
       .join("|");
 
   const downloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([Object.fromEntries(uploadHeaders.map((h) => [h, ""]))], { header: uploadHeaders });
+    const headers = [...uploadHeaders, SAMPLE_COLUMN];
+    const sampleRow: Record<string, unknown> = {
+      pelabuhan_asal: "Pelabuhan Biringkassi",
+      packing_plant: "PP. Palu",
+      bulan: 1,
+      tahun: new Date().getFullYear(),
+      target_pcc: 1250.5,
+      target_opc: 1250.5,
+      target_spk: 1250.5,
+      plant: "Tonasa 4",
+      [SAMPLE_COLUMN]: SAMPLE_VALUE,
+    };
+    const ws = XLSX.utils.json_to_sheet([sampleRow], { header: headers });
+    ws["!cols"] = headers.map((h) => ({ wch: Math.max(14, h.length + 2) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template RKAP Shipment Laut");
-    XLSX.writeFile(wb, "template-rkap-shipment-laut.xlsx");
+    XLSX.writeFile(wb, `template-rkap-shipment-laut-${sampleDateISO()}.xlsx`);
   };
 
   const handleUploadClick = () => {
@@ -378,6 +393,10 @@ export default function RkapShipmentLautPage() {
   const processUploadedFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    await uploadFile(file);
+  };
+
+  const uploadFile = async (file: File) => {
 
     setUploadStatus("uploading");
     setUploadMessage("Memproses file...");
@@ -391,9 +410,14 @@ export default function RkapShipmentLautPage() {
 
       let successCount = 0;
       let skippedCount = 0;
+      let sampleCount = 0;
       const existingKeys = new Set(rows.map((row) => createDuplicateKey(row)));
 
       for (const uploadedRow of uploadedRows) {
+        if (isSampleRow(uploadedRow)) {
+          sampleCount += 1;
+          continue;
+        }
         const payload = normalizeUploadRow(uploadedRow);
         if (!payload.pelabuhan_asal || !payload.packing_plant || !payload.bulan || !payload.tahun) continue;
 
@@ -419,8 +443,11 @@ export default function RkapShipmentLautPage() {
 
       await fetchRows();
       setUploadStatus("success");
-      setUploadMessage(`Upload selesai. ${successCount} data berhasil disimpan, ${skippedCount} data duplikat di-skip.`);
-      event.target.value = "";
+      setUploadMessage(
+        `Upload selesai. ${successCount} data berhasil disimpan, ${skippedCount} data duplikat di-skip${
+          sampleCount ? `, ${sampleCount} baris contoh di-skip` : ""
+        }.`
+      );
     } catch (error) {
       console.error(error);
       setUploadStatus("error");
@@ -859,6 +886,37 @@ export default function RkapShipmentLautPage() {
             )}
 
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={processUploadedFile} />
+
+            <div
+              onClick={handleUploadClick}
+              role="button"
+              tabIndex={0}
+              onDragEnter={(e) => { e.preventDefault(); setDragOverUpload(true); }}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setDragOverUpload(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setDragOverUpload(false); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragOverUpload(false);
+                if (uploadStatus === "uploading") return;
+                const file = e.dataTransfer.files?.[0];
+                if (file) uploadFile(file);
+              }}
+              className={`mb-4 flex flex-col items-center justify-center gap-1.5 px-4 py-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+                dragOverUpload ? "border-green-600 bg-green-100" : "border-green-400 bg-green-50/40 hover:bg-green-50"
+              }`}
+            >
+              <Download size={20} className="text-green-600" />
+              <span className="text-sm font-semibold text-gray-800">
+                {uploadStatus === "uploading" ? "Mengupload..." : "Upload data Excel"}
+              </span>
+              <span className="text-xs text-gray-500 text-center">
+                drag & drop file .xlsx ke sini atau klik untuk memilih
+              </span>
+              <span className="text-xs text-amber-600 text-center">
+                Baris contoh bertanda &quot;{SAMPLE_COLUMN} = {SAMPLE_VALUE}&quot; otomatis di-skip
+              </span>
+            </div>
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button onClick={() => setShowUploadModal(false)} disabled={uploadStatus === "uploading"} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">Batal</button>

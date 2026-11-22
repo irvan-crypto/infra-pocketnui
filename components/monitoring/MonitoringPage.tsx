@@ -51,7 +51,8 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
   const [showChoice, setShowChoice] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadParsing, setUploadParsing] = useState(false);
-  const [uploadResult, setUploadResult] = useState<{ rows: ParsedRow[]; errors: string[] } | null>(null);
+  const [uploadResult, setUploadResult] = useState<{ rows: ParsedRow[]; errors: string[]; samplesSkipped?: number } | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState("");
 
   /** Data grafik garis (tren harian) — dihitung dari config.lineCharts */
   const lineChartData = useMemo(() => {
@@ -191,7 +192,7 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
           return `Tanggal ${formatTanggalPanjang(r.tanggal)}${extra} sudah ada di database — hapus baris tersebut atau gunakan Edit.`;
         });
 
-      setUploadResult({ rows: result.rows, errors: [...result.errors, ...dupErrors] });
+      setUploadResult({ rows: result.rows, errors: [...result.errors, ...dupErrors], samplesSkipped: result.samplesSkipped });
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Gagal membaca file");
     } finally {
@@ -224,9 +225,19 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
           throw new Error(data.message || `Gagal menyimpan data tanggal ${row.tanggal}`);
         }
       }
-      setShowUpload(false);
+      const sampleInfo = uploadResult.samplesSkipped
+        ? `, ${uploadResult.samplesSkipped} baris contoh di-skip`
+        : "";
+      setUploadSuccess(
+        `Data berhasil ditambahkan (${uploadResult.rows.length} ditambahkan${sampleInfo})`
+      );
       setUploadResult(null);
+      setUploadError("");
       await fetchRows();
+      window.setTimeout(() => {
+        setShowUpload(false);
+        setUploadSuccess("");
+      }, 3000);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan");
     } finally {
@@ -604,7 +615,7 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
             </div>
             <div className="grid grid-cols-1 gap-3 mt-5">
               <button
-                onClick={() => { setShowChoice(false); setUploadResult(null); setUploadError(""); setShowUpload(true); }}
+                onClick={() => { setShowChoice(false); setUploadResult(null); setUploadError(""); setUploadSuccess(""); setShowUpload(true); }}
                 className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25 transition-all flex items-center justify-center gap-2"
               >
                 <Upload size={16} />
@@ -677,6 +688,12 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
                 </div>
               )}
 
+              {uploadSuccess && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm font-semibold mb-4">
+                  {uploadSuccess}
+                </div>
+              )}
+
               {uploadResult && (
                 <div>
                   {uploadResult.errors.length > 0 && (
@@ -687,6 +704,12 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
                       </ul>
                     </div>
                   )}
+
+                  {uploadResult.samplesSkipped ? (
+                    <p className="text-xs text-amber-600 mb-3">
+                      {uploadResult.samplesSkipped} baris contoh dari template otomatis di-skip.
+                    </p>
+                  ) : null}
 
                   {uploadResult.rows.length > 0 && (
                     <>

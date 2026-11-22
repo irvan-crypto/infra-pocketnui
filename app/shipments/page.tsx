@@ -30,7 +30,7 @@ interface Shipment {
 
 type ShipmentField = keyof Omit<Shipment, "id" | "created_at" | "updated_at">;
 
-export default function ShipmentsPage() {
+export default function ShipmentsPage({ monitoringView = false }: { monitoringView?: boolean } = {}) {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -175,7 +175,7 @@ export default function ShipmentsPage() {
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Manajemen Kapal</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{monitoringView ? "Monitoring Angkutan Laut" : "Manajemen Kapal"}</h1>
         {canEdit && (
           <button
             onClick={resetForm}
@@ -185,6 +185,22 @@ export default function ShipmentsPage() {
           </button>
         )}
       </div>
+
+      {monitoringView && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[
+            { label: "Total Kapal", value: shipments.length, color: "blue" },
+            { label: "Total Muatan", value: `${shipments.reduce((sum, s) => sum + Number(s.muatan_ton || 0), 0).toLocaleString("id-ID")} ton`, color: "emerald" },
+            { label: "Belum Berangkat", value: shipments.filter((s) => !s.td_pelabuhan).length, color: "amber" },
+            { label: "Sudah Tiba PP", value: shipments.filter((s) => !!s.ta_pp).length, color: "violet" },
+          ].map((card) => (
+            <div key={card.label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+              <p className="text-xs text-gray-500">{card.label}</p>
+              <p className={`mt-2 text-xl font-bold text-${card.color}-600`}>{card.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Form */}
       {canEdit && (formData.nama_kapal || isEditing) && (
