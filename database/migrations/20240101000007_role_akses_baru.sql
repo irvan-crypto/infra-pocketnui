@@ -40,7 +40,7 @@ from (
     -- Operator: Packing Plant 1
     ('operator',        'Packing Plant 1',   'PP1 Samarinda'),
     ('operator',        'Packing Plant 1',   'PP1 Balikpapan'),
-    ('operator',        'Packing Plant 1',   'PP1 Banjar'),
+    ('operator',        'Packing Plant 1',   'PP1 Banjarmasin'),
     ('operator',        'Packing Plant 1',   'PP1 Palu'),
     ('operator',        'Packing Plant 1',   'PP1 Lembar'),
     ('operator',        'Packing Plant 1',   'PP1 Makassar'),

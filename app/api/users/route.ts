@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/guard";
-import { normalizeRole, ROLE_OPTIONS } from "@/lib/roles";
+import { isScopedRole, normalizeRole, ROLE_OPTIONS } from "@/lib/roles";
 import {
   AKSES_OPTIONS,
   getAksesPpOptions,
@@ -50,8 +50,8 @@ function validatePayload(body: Record<string, any>, isCreate: boolean): string |
   if (!username) return "Username wajib diisi";
   if (!role || !VALID_ROLES.includes(role)) return "Role tidak valid";
 
-  // Akses & Hak Akses hanya relevan untuk Operator
-  if (role === "operator") {
+  // Akses & Hak Akses hanya relevan untuk Supervisor & Operator
+  if (isScopedRole(role)) {
     const akses = String(body.akses ?? "").trim();
     if (!akses || !VALID_AKSES.includes(akses)) return "Akses tidak valid";
 
@@ -81,7 +81,7 @@ function validatePayload(body: Record<string, any>, isCreate: boolean): string |
 
 function buildPayload(body: Record<string, any>) {
   const role = normalizeRole(body.role);
-  const akses = role === "operator" ? String(body.akses ?? "").trim() : "";
+  const akses = isScopedRole(role) ? String(body.akses ?? "").trim() : "";
   return {
     nama_lengkap: String(body.nama_lengkap ?? "").trim(),
     email: body.email ? String(body.email).trim() : null,

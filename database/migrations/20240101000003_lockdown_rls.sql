@@ -36,7 +36,7 @@ declare
     'pp_biringkassi',
     'pp1_samarinda',
     'pp1_balikpapan',
-    'pp1_banjar',
+    'pp1_banjarmasin',
     'pp1_palu',
     'pp1_lembar',
     'pp1_makassar',
@@ -74,7 +74,7 @@ from pg_policies
 where tablename in (
   'shipments','shipments_darat','rkap_shipments','angkutan_darat','packing_plant',
   'pengguna','silo_semen','silo_pantai','silo_mini','cp_tonasa','pp_biringkassi',
-  'pp1_samarinda','pp1_balikpapan','pp1_banjar','pp1_palu','pp1_lembar','pp1_makassar',
+  'pp1_samarinda','pp1_balikpapan','pp1_banjarmasin','pp1_palu','pp1_lembar','pp1_makassar',
   'pp2_bitung','pp2_mamuju','pp2_kendari','pp2_oba','pp2_ambon','pp2_sorong'
 )
 order by tablename, policyname;

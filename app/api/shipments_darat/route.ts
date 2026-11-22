@@ -2,18 +2,19 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireUser, requireWriter } from "@/lib/auth/guard";
 import { resolveUserScope, isGlobalTableInScope } from "@/lib/units";
+import { isScopedRole } from "@/lib/roles";
 import type { SessionUser } from "@/lib/auth/session";
 
 // ============================================================
 // Shipment darat (interplant).
-// Operator hanya boleh menulis bila unitnya punya scope global
+// Supervisor/Operator hanya boleh menulis bila unitnya punya scope global
 // (mis. Head Office); unit PP hanya untuk tabel PP-nya sendiri.
 // ============================================================
 
 const TABLE = "shipments_darat";
 
 function canWriteShipmentDarat(user: SessionUser): boolean {
-  if (user.role !== "operator") return true;
+  if (!isScopedRole(user.role)) return true;
   return isGlobalTableInScope(resolveUserScope(user.role, user.akses, user.aksesPp), TABLE);
 }
 

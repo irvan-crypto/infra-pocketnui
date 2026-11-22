@@ -155,7 +155,7 @@ create index if not exists idx_pp1_balikpapan_tanggal on pp1_balikpapan(tanggal)
 -- ============================================================
 -- 7. PP1 BANJAR
 -- ============================================================
-create table if not exists pp1_banjar (
+create table if not exists pp1_banjarmasin (
   id uuid primary key default gen_random_uuid(),
   tanggal date not null,
   bjr_masuk numeric(15, 2) default 0,
@@ -164,7 +164,7 @@ create table if not exists pp1_banjar (
   create_date timestamp with time zone default now(),
   update_date timestamp with time zone default now()
 );
-create index if not exists idx_pp1_banjar_tanggal on pp1_banjar(tanggal);
+create index if not exists idx_pp1_banjarmasin_tanggal on pp1_banjarmasin(tanggal);
 
 -- ============================================================
 -- 8. PP1 PALU
@@ -327,7 +327,7 @@ declare
 begin
   foreach t in array array[
     'silo_semen', 'cp_tonasa', 'pp_biringkassi', 'silo_mini',
-    'pp1_samarinda', 'pp1_balikpapan', 'pp1_banjar', 'pp1_palu',
+    'pp1_samarinda', 'pp1_balikpapan', 'pp1_banjarmasin', 'pp1_palu',
     'pp1_lembar', 'pp1_makassar',
     'pp2_bitung', 'pp2_mamuju', 'pp2_kendari', 'pp2_oba',
     'pp2_ambon', 'pp2_sorong',
@@ -442,8 +442,8 @@ select * from (values
 ) as v(tanggal, bpp_masuk, bpp_rilis, bpp_stok)
 where not exists (select 1 from pp1_balikpapan p where p.tanggal = v.tanggal);
 
--- ── 7. PP1 Banjar ──
-insert into pp1_banjar (tanggal, bjr_masuk, bjr_rilis, bjr_stok)
+-- ── 7. PP1 Banjarmasin ──
+insert into pp1_banjarmasin (tanggal, bjr_masuk, bjr_rilis, bjr_stok)
 select * from (values
   (current_date - 4, 620, 540, 1500),
   (current_date - 3, 590, 510, 1580),
@@ -451,7 +451,7 @@ select * from (values
   (current_date - 1, 610, 530, 1740),
   (current_date,     640, 555, 1825)
 ) as v(tanggal, bjr_masuk, bjr_rilis, bjr_stok)
-where not exists (select 1 from pp1_banjar p where p.tanggal = v.tanggal);
+where not exists (select 1 from pp1_banjarmasin p where p.tanggal = v.tanggal);
 
 -- ── 8. PP1 Palu ──
 insert into pp1_palu (tanggal, palu_masuk, palu_rilis, palu_stok)
@@ -576,7 +576,7 @@ union all select 'pp_biringkassi',   count(*) from pp_biringkassi
 union all select 'silo_mini',        count(*) from silo_mini
 union all select 'pp1_samarinda',    count(*) from pp1_samarinda
 union all select 'pp1_balikpapan',   count(*) from pp1_balikpapan
-union all select 'pp1_banjar',       count(*) from pp1_banjar
+union all select 'pp1_banjarmasin',       count(*) from pp1_banjarmasin
 union all select 'pp1_palu',         count(*) from pp1_palu
 union all select 'pp1_lembar',       count(*) from pp1_lembar
 union all select 'pp1_makassar',     count(*) from pp1_makassar

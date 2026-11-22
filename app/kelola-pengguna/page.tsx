@@ -6,7 +6,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import DataTable from "@/components/ui/DataTable";
 import AccessDenied from "@/components/AccessDenied";
 import { getPermissions } from "@/lib/access";
-import { ROLE_META, ROLES, normalizeRole, roleBadgeClass, roleLabel } from "@/lib/roles";
+import {
+  ROLE_META,
+  ROLES,
+  isScopedRole,
+  normalizeRole,
+  roleBadgeClass,
+  roleLabel,
+} from "@/lib/roles";
 import { AKSES_OPTIONS, getAksesPpOptions, requiresAksesPp } from "@/lib/units";
 import {
   DEFAULT_PASSWORD,
@@ -129,7 +136,8 @@ export default function KelolaPenggunaPage() {
     return list.filter((r) => r !== "admin" && r !== "asisten_admin") as string[];
   }, [meta, user?.role]);
 
-  const isOperatorForm = normalizeRole(form.role) === "operator";
+  // Supervisor diperlakukan sama seperti Operator (Akses + Hak Akses)
+  const isOperatorForm = isScopedRole(form.role);
 
   const aksesOptionsForRole = useMemo(() => {
     if (!isOperatorForm) return [];
@@ -175,9 +183,9 @@ export default function KelolaPenggunaPage() {
       const next = { ...prev, [name]: value };
 
       if (name === "role") {
-        const isOperator = normalizeRole(value) === "operator";
+        const isOperator = isScopedRole(value);
         if (!isOperator) {
-          // Akses & Hak Akses hanya relevan untuk Operator
+          // Akses & Hak Akses hanya relevan untuk Supervisor & Operator
           next.akses = "";
           next.akses_pp = "";
         } else {

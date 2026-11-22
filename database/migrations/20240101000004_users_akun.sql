@@ -77,7 +77,7 @@ from (values
   -- Operator Packing Plant 1
   ('operator',         'Packing Plant 1',  'PP1 Samarinda'),
   ('operator',         'Packing Plant 1',  'PP1 Balikpapan'),
-  ('operator',         'Packing Plant 1',  'PP1 Banjar'),
+  ('operator',         'Packing Plant 1',  'PP1 Banjarmasin'),
   ('operator',         'Packing Plant 1',  'PP1 Palu'),
   ('operator',         'Packing Plant 1',  'PP1 Lembar'),
   ('operator',         'Packing Plant 1',  'PP1 Makassar'),
@@ -144,7 +144,7 @@ begin
         when lower(coalesce(p.unit_pp, '')) like '%head office%' then null
         when lower(coalesce(p.unit_pp, '')) like '%samarinda%'  then 'PP1 Samarinda'
         when lower(coalesce(p.unit_pp, '')) like '%balikpapan%' then 'PP1 Balikpapan'
-        when lower(coalesce(p.unit_pp, '')) like '%banjar%'     then 'PP1 Banjar'
+        when lower(coalesce(p.unit_pp, '')) like '%banjar%'     then 'PP1 Banjarmasin'
         when lower(coalesce(p.unit_pp, '')) like '%palu%'       then 'PP1 Palu'
         when lower(coalesce(p.unit_pp, '')) like '%lembar%'     then 'PP1 Lembar'
         when lower(coalesce(p.unit_pp, '')) like '%makassar%'   then 'PP1 Makassar'

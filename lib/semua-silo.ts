@@ -34,7 +34,7 @@ export interface PpUnit {
 export const PP_UNITS: PpUnit[] = [
   { nama: "PP. Samarinda", group: "pp1", table: "pp1_samarinda", prefix: "sama" },
   { nama: "PP. Balikpapan", group: "pp1", table: "pp1_balikpapan", prefix: "bpp" },
-  { nama: "PP. Banjarmasin", group: "pp1", table: "pp1_banjar", prefix: "bjr" },
+  { nama: "PP. Banjarmasin", group: "pp1", table: "pp1_banjarmasin", prefix: "bjr" },
   { nama: "PP. Palu", group: "pp1", table: "pp1_palu", prefix: "palu" },
   { nama: "PP. Makassar", group: "pp1", table: "pp1_makassar", prefix: "mks" },
   { nama: "PP. Lembar", group: "pp1", table: "pp1_lembar", prefix: "lbr" },

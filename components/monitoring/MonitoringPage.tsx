@@ -27,13 +27,13 @@ import {
 type Row = Record<string, any>;
 type FormData = Record<string, string>;
 
-const WRITE_ROLES = ["admin", "asisten_admin", "operator"];
+const WRITE_ROLES = ["admin", "asisten_admin", "supervisor", "operator"];
 const BULAN_SINGKAT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 export default function MonitoringPage({ config }: { config: MonitoringTableConfig }) {
   const { user } = useAuth();
   // Role read-only (GM/SM/Manager/Guest) tidak mendapat aksi apa pun.
-  // Operator hanya untuk tabel unitnya.
+  // Supervisor & Operator hanya untuk tabel unitnya.
   const perms = getPermissions(user);
   const canEdit = canEditMonitoringPage(perms, config.slug);
 

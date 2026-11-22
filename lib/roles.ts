@@ -11,6 +11,7 @@ export const ROLES = [
   "senior_manager",
   "manager",
   "direksi",
+  "supervisor",
   "operator",
   "staff",
   "guest",
@@ -80,6 +81,14 @@ export const ROLE_META: Record<Role, RoleMeta> = {
     description: "Melihat semua modul (tanpa RKAP) tanpa hak ubah.",
     viewOnly: true,
   },
+  supervisor: {
+    label: "Supervisor",
+    short: "Spv",
+    icon: "🧭",
+    badge: "bg-teal-50 text-teal-700",
+    description: "CRUD data sesuai unit kerja (sama seperti Operator).",
+    viewOnly: false,
+  },
   operator: {
     label: "Operator",
     short: "Ops",
@@ -115,7 +124,19 @@ export const ROLE_OPTIONS: { value: Role; label: string; description: string }[]
 );
 
 /** Role yang boleh menulis (create/update) data operasional */
-export const WRITE_ROLES: Role[] = ["admin", "asisten_admin", "operator"];
+export const WRITE_ROLES: Role[] = ["admin", "asisten_admin", "supervisor", "operator"];
+
+/**
+ * Role yang wewenangnya dibatasi oleh Akses / Hak Akses (bukan akses penuh).
+ * Dipakai untuk menentukan apakah scope unit perlu dihitung.
+ */
+export const SCOPED_ROLES: Role[] = ["supervisor", "operator"];
+
+/** true bila role dibatasi Akses/Hak Akses (Supervisor & Operator) */
+export function isScopedRole(role: unknown): boolean {
+  const r = normalizeRole(role);
+  return r !== null && SCOPED_ROLES.includes(r);
+}
 
 /** Role yang boleh menghapus data operasional */
 export const DELETE_ROLES: Role[] = ["admin", "asisten_admin"];
@@ -150,6 +171,10 @@ const ROLE_ALIASES: Record<string, Role> = {
   direktur: "direksi",
   director: "direksi",
   board: "direksi",
+  supervisor: "supervisor",
+  spv: "supervisor",
+  supervisi: "supervisor",
+  pengawas: "supervisor",
   operator: "operator",
   ops: "operator",
   staff: "staff",

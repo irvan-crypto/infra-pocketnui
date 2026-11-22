@@ -6,6 +6,7 @@
 // ============================================================
 
 import { MONITORING_CONFIGS } from "./monitoring-config";
+import { isScopedRole } from "./roles";
 
 export interface UnitDefinition {
   key: string;
@@ -55,7 +56,14 @@ export const UNIT_DEFINITIONS: UnitDefinition[] = [
 
   pp("pp1-samarinda", "PP1 Samarinda", "pp1-samarinda", ["pp. samarinda", "pp1 samarinda", "samarinda"], ["PP. Samarinda", "PP1 Samarinda"]),
   pp("pp1-balikpapan", "PP1 Balikpapan", "pp1-balikpapan", ["pp. balikpapan", "pp1 balikpapan", "balikpapan"], ["PP. Balikpapan", "PP1 Balikpapan"]),
-  pp("pp1-banjar", "PP1 Banjar", "pp1-banjar", ["pp. banjar", "pp1 banjar", "banjar"], ["PP. Banjar", "PP1 Banjar"]),
+  pp(
+    "pp1-banjarmasin",
+    "PP1 Banjarmasin",
+    "pp1-banjarmasin",
+    // "Banjar" = penamaan lama (data historis)
+    ["pp. banjarmasin", "pp1 banjarmasin", "banjarmasin", "pp. banjar", "pp1 banjar", "banjar"],
+    ["PP. Banjarmasin", "PP1 Banjarmasin", "PP. Banjar", "PP1 Banjar"]
+  ),
   pp("pp1-palu", "PP1 Palu", "pp1-palu", ["pp. palu", "pp1 palu", "palu"], ["PP. Palu", "PP1 Palu"]),
   pp("pp1-lembar", "PP1 Lembar", "pp1-lembar", ["pp. lembar", "pp1 lembar", "lembar"], ["PP. Lembar", "PP1 Lembar"]),
   pp("pp1-makassar", "PP1 Makassar", "pp1-makassar", ["pp. makassar", "pp1 makassar", "makassar"], ["PP. Makassar", "PP1 Makassar"]),
@@ -294,7 +302,7 @@ export function resolveAccessScope(
 
 /**
  * Scope efektif seorang user:
- * - operator  -> mengikuti akses/akses_pp
+ * - supervisor/operator -> mengikuti akses/akses_pp
  * - role lain -> penuh (mereka memang read-only atau admin)
  */
 export function resolveUserScope(
@@ -302,7 +310,7 @@ export function resolveUserScope(
   akses: string | null | undefined,
   aksesPp: string | null | undefined
 ): UnitScope {
-  const r = (role || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (r !== "operator") return FULL_SCOPE;
+  // Hanya Supervisor & Operator yang wewenangnya dibatasi akses/akses_pp
+  if (!isScopedRole(role)) return FULL_SCOPE;
   return resolveAccessScope(akses, aksesPp);
 }

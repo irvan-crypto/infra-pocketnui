@@ -42,7 +42,7 @@ begin
     from (values
       ('pp1_samarinda',  'sama'),
       ('pp1_balikpapan', 'bpp'),
-      ('pp1_banjar',     'bjr'),
+      ('pp1_banjarmasin',     'bjr'),
       ('pp1_palu',       'palu'),
       ('pp1_lembar',     'lbr'),
       ('pp1_makassar',   'mks'),
@@ -122,7 +122,7 @@ begin
     select * from (values
       ('pp1_samarinda',  'sama'),
       ('pp1_balikpapan', 'bpp'),
-      ('pp1_banjar',     'bjr'),
+      ('pp1_banjarmasin',     'bjr'),
       ('pp1_palu',       'palu'),
       ('pp1_lembar',     'lbr'),
       ('pp1_makassar',   'mks'),

@@ -7,7 +7,7 @@
 -- Prefix per tabel (kolom baru mengikuti prefix tabelnya):
 --   pp1_samarinda  → sama      pp2_bitung  → btg
 --   pp1_balikpapan → bpp       pp2_mamuju  → mmju
---   pp1_banjar     → bjr       pp2_kendari → kdri
+--   pp1_banjarmasin     → bjr       pp2_kendari → kdri
 --   pp1_palu       → palu      pp2_oba     → oba
 --   pp1_lembar     → lbr       pp2_ambon   → abn
 --   pp1_makassar   → mks       pp2_sorong  → srg
@@ -69,7 +69,7 @@ begin
     from (values
       ('pp1_samarinda',  'sama'),
       ('pp1_balikpapan', 'bpp'),
-      ('pp1_banjar',     'bjr'),
+      ('pp1_banjarmasin',     'bjr'),
       ('pp1_palu',       'palu'),
       ('pp1_lembar',     'lbr'),
       ('pp1_makassar',   'mks'),
@@ -213,7 +213,7 @@ select
 from information_schema.columns
 where table_schema = 'public'
   and table_name in (
-    'pp1_samarinda', 'pp1_balikpapan', 'pp1_banjar',
+    'pp1_samarinda', 'pp1_balikpapan', 'pp1_banjarmasin',
     'pp1_palu', 'pp1_lembar', 'pp1_makassar',
     'pp2_bitung', 'pp2_mamuju', 'pp2_kendari',
     'pp2_oba', 'pp2_ambon', 'pp2_sorong'

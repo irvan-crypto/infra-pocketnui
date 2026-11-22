@@ -287,7 +287,7 @@ export const MONITORING_CONFIGS: MonitoringTableConfig[] = [
   },
   ppConfig("pp1-samarinda", "pp1_samarinda", "PP1 Samarinda", "sama"),
   ppConfig("pp1-balikpapan", "pp1_balikpapan", "PP1 Balikpapan", "bpp"),
-  ppConfig("pp1-banjar", "pp1_banjar", "PP1 Banjar", "bjr"),
+  ppConfig("pp1-banjarmasin", "pp1_banjarmasin", "PP1 Banjarmasin", "bjr"),
   ppConfig("pp1-palu", "pp1_palu", "PP1 Palu", "palu"),
   ppConfig("pp1-lembar", "pp1_lembar", "PP1 Lembar", "lbr"),
   ppConfig("pp1-makassar", "pp1_makassar", "PP1 Makassar", "mks"),

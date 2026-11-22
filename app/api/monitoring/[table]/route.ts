@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireUser, requireWriter } from "@/lib/auth/guard";
 import { resolveUserScope, isMonitoringSlugInScope, isGlobalTableInScope } from "@/lib/units";
+import { isScopedRole } from "@/lib/roles";
 import type { SessionUser } from "@/lib/auth/session";
 import {
   MONITORING_CONFIGS,
@@ -21,9 +22,9 @@ function resolveConfig(table: string): MonitoringTableConfig | null {
   return MONITORING_CONFIGS.find((c) => c.table === table) ?? null;
 }
 
-/** Operator hanya boleh menulis tabel monitoring unitnya / tabel global unitnya */
+/** Supervisor/Operator hanya boleh menulis tabel monitoring unitnya / tabel global unitnya */
 function canWriteTable(user: SessionUser, cfg: MonitoringTableConfig): boolean {
-  if (user.role !== "operator") return true;
+  if (!isScopedRole(user.role)) return true;
   const scope = resolveUserScope(user.role, user.akses, user.aksesPp);
   return (
     isMonitoringSlugInScope(scope, cfg.slug) ||

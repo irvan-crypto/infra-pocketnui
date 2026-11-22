@@ -197,7 +197,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                         inert={!isOpen}
                       >
                         {item.children.map((child) => {
-                          const childActive = isChildActive(pathname, child.href);
+                          const childActive = isChildActive(pathname, child);
                           return (
                             <Link
                               key={child.href}
@@ -298,7 +298,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                 {flyout.title}
               </div>
               {flyout.children.map((child) => {
-                const childActive = isChildActive(pathname, child.href);
+                const childActive = isChildActive(pathname, child);
                 return (
                   <Link
                     key={child.href}

@@ -68,11 +68,15 @@ const formatDateTime = (value: unknown) =>
         .replace(/:/g, ".")
     : "";
 
-/** Format timestamp yang diterima PostgreSQL: YYYY-MM-DD HH:mm:ss */
-const toTimestamp = (value: unknown) => {
-  if (!value) return undefined;
+/**
+ * Format timestamp yang diterima PostgreSQL: YYYY-MM-DD HH:mm:ss
+ * Nilai kosong dikembalikan sebagai `null` (bukan `undefined`) supaya kolom
+ * benar-benar dikosongkan saat user menghapus tanggal lalu menyimpan.
+ */
+const toTimestamp = (value: unknown): string | null => {
+  if (!value) return null;
   const date = value instanceof Date ? value : new Date(String(value));
-  if (Number.isNaN(date.getTime())) return undefined;
+  if (Number.isNaN(date.getTime())) return null;
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
     date.getHours()
@@ -345,11 +349,13 @@ export default function AngkutanLautPage() {
         ...SHIP_STATUS_ORDER,
       ];
       const normalize = (v: unknown, key: string) => {
-        if (v === "" || v == null) return undefined;
+        // Kolom tanggal status: kosong -> null (ikut mengosongkan saat update)
         if (SHIP_STATUS_ORDER.includes(key as any)) {
+          if (v === "" || v == null) return null;
           if (typeof v === "number") return toTimestamp(new Date(Date.UTC(1899, 11, 30) + v * 86400000));
           return toTimestamp(v);
         }
+        if (v === "" || v == null) return undefined;
         if (key === "muatan_ton") return Number(String(v).replace(",", ".")) || 0;
         return String(v).trim();
       };
@@ -504,6 +510,7 @@ export default function AngkutanLautPage() {
     setSaving(true);
     const timestampForm = { ...form };
     for (const key of SHIP_STATUS_ORDER) {
+      // null = kosongkan kolom ("" akan ditolak PostgreSQL, undefined akan diabaikan)
       timestampForm[key] = toTimestamp(form[key]);
     }
     const r = await fetch("/api/shipments", {

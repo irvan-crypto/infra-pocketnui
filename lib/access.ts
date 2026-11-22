@@ -1,4 +1,11 @@
-import { normalizeRole, canManageUsers, canWriteData, canDeleteData, type Role } from "./roles";
+import {
+  normalizeRole,
+  canManageUsers,
+  canWriteData,
+  canDeleteData,
+  isScopedRole,
+  type Role,
+} from "./roles";
 import {
   resolveUserScope,
   isTargetInScope,
@@ -37,6 +44,7 @@ export const PROFILE_ROLES: Role[] = [
   "senior_manager",
   "manager",
   "direksi",
+  "supervisor",
   "operator",
   "staff",
 ];
@@ -109,8 +117,8 @@ export function canAccessPath(
   // Staff & Guest: hanya dashboard + ringkasan monitoring
   if (BASIC_ROLES.includes(r)) return false;
 
-  // Operator: halaman unitnya sendiri + angkutan laut + stok harian (view-only)
-  if (r === "operator") {
+  // Supervisor & Operator: halaman unitnya sendiri + angkutan laut + stok harian (view-only)
+  if (isScopedRole(r)) {
     const scope = resolveUserScope(r, user?.akses, user?.aksesPp);
     const akses = normalizeUnitName(user?.akses);
     const slug = path.match(/^\/monitoring\/([a-z0-9-]+)$/)?.[1];
@@ -124,7 +132,7 @@ export function canAccessPath(
         scope.labels.includes(AKSES_ANGKUTAN_LAUT)
       );
     }
-    // Stok harian: operator Plant & Port Prod boleh melihat (view-only)
+    // Stok harian: Supervisor/Operator Plant & Port Prod boleh melihat (view-only)
     if (slug === "silo-semen") {
       return scope.all || akses === normalizeUnitName(AKSES_PLANT_PORT);
     }

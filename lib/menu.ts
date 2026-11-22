@@ -1,18 +1,18 @@
 import {
   LayoutDashboard,
-  LayoutGrid,
   Factory,
   Truck,
   BarChart3,
   Users,
   Database,
-  Cylinder,
   type LucideIcon,
 } from "lucide-react";
 
 export interface MenuChild {
   title: string;
   href: string;
+  /** true = hanya aktif bila path persis sama (bukan halaman turunannya) */
+  exact?: boolean;
   /** true = hanya role tertentu (lihat RESTRICTED_ROUTES di lib/access.ts) */
   restricted?: boolean;
 }
@@ -31,19 +31,15 @@ export const MENU: MenuItem[] = [
     title: "Dashboard",
     icon: LayoutDashboard,
     children: [
+      { title: "Ringkasan Monitoring", href: "/monitoring", exact: true },
       { title: "Shipment Laut", href: "/dashboard/shipment-laut" },
     ],
   },
   {
-    title: "Ringkasan Monitoring",
-    icon: LayoutGrid,
-    href: "/monitoring",
-  },
-  {
-    title: "Silo Semen",
-    icon: Cylinder,
+    title: "Plant & Port Prod",
+    icon: Factory,
     children: [
-      { title: "Stok Harian", href: "/monitoring/silo-semen" },
+      { title: "Silo Semen", href: "/monitoring/silo-semen" },
       { title: "Silo Pantai", href: "/monitoring/silo-pantai" },
       { title: "CP Tonasa", href: "/monitoring/cp-tonasa" },
       { title: "Silo Mini", href: "/monitoring/silo-mini" },
@@ -65,7 +61,7 @@ export const MENU: MenuItem[] = [
     children: [
       { title: "Samarinda", href: "/monitoring/pp1-samarinda" },
       { title: "Balikpapan", href: "/monitoring/pp1-balikpapan" },
-      { title: "Banjar", href: "/monitoring/pp1-banjar" },
+      { title: "Banjarmasin", href: "/monitoring/pp1-banjarmasin" },
       { title: "Palu", href: "/monitoring/pp1-palu" },
       { title: "Lembar", href: "/monitoring/pp1-lembar" },
       { title: "Makassar", href: "/monitoring/pp1-makassar" },
@@ -94,12 +90,18 @@ export const MENU: MenuItem[] = [
   { title: "DB Status", icon: Database, href: "/db-status", restricted: true },
 ];
 
-export function isChildActive(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(href + "/");
+export function isChildActive(pathname: string, target: MenuChild | string): boolean {
+  const href = typeof target === "string" ? target : target.href;
+  const exact = typeof target === "string" ? false : Boolean(target.exact);
+  if (pathname === href) return true;
+  // `exact` dipakai untuk halaman induk (mis. /monitoring) supaya tidak
+  // ikut aktif saat membuka halaman turunannya (/monitoring/silo-semen).
+  if (exact) return false;
+  return pathname.startsWith(href + "/");
 }
 
 export function isGroupActive(pathname: string, item: MenuItem): boolean {
-  return item.children?.some((c) => isChildActive(pathname, c.href)) ?? false;
+  return item.children?.some((c) => isChildActive(pathname, c)) ?? false;
 }
 
 export function getItemHref(item: MenuItem): string | undefined {

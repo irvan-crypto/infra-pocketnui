@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireUser, forbidden } from "@/lib/auth/guard";
-import { canWriteData, canManageUsers } from "@/lib/roles";
+import { canWriteData, canManageUsers, isScopedRole } from "@/lib/roles";
 import { resolveUserScope, isTargetInScope } from "@/lib/units";
 import type { SessionUser } from "@/lib/auth/session";
 
@@ -19,12 +19,12 @@ async function requireRkapAccess() {
 
 // ============================================================
 // RKAP shipment laut (target per packing plant).
-// Operator hanya boleh CRUD untuk packing_plant unitnya.
+// Supervisor/Operator hanya boleh CRUD untuk packing_plant unitnya.
 // ============================================================
 
 function canWritePlant(user: SessionUser, plant: unknown): boolean {
   if (!canWriteData(user.role)) return false;
-  if (user.role === "operator") {
+  if (isScopedRole(user.role)) {
     return isTargetInScope(resolveUserScope(user.role, user.akses, user.aksesPp), plant);
   }
   return true;
@@ -104,7 +104,7 @@ export async function PUT(request: Request) {
 
     const client = createAdminClient();
 
-    if (auth.user.role === "operator") {
+    if (isScopedRole(auth.user.role)) {
       const { data: existing } = await client
         .from("rkap_shipments")
         .select("packing_plant")
@@ -147,7 +147,7 @@ export async function DELETE(request: Request) {
 
     const client = createAdminClient();
 
-    if (auth.user.role === "operator") {
+    if (isScopedRole(auth.user.role)) {
       const { data: existing } = await client
         .from("rkap_shipments")
         .select("packing_plant")
