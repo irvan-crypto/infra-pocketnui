@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bell, Menu, LogOut, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { Bell, Menu, LogOut, ChevronDown, UserCircle } from "lucide-react";
+import NotifToggle from "@/components/NotifToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { roleBadgeClass, roleLabel } from "@/lib/utils";
 
@@ -91,11 +93,16 @@ export default function Header({ onMobileMenu, pendingCount = 0 }: Props) {
                   {roleLabel(user.role)}
                 </span>
               </div>
-              <div className="px-4 py-2 hidden sm:block">
-                <p className="text-[11px] text-gray-400 truncate">{user.username}</p>
-                {user.unitKerja && (
-                  <p className="text-[11px] text-gray-400 truncate">Unit: {user.unitKerja}</p>
-                )}
+              <Link
+                href="/profil"
+                onClick={() => setDropdownOpen(false)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <UserCircle size={16} />
+                <span>Profil</span>
+              </Link>
+              <div className="px-2">
+                <NotifToggle />
               </div>
               <button
                 onClick={logout}

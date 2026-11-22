@@ -18,7 +18,7 @@ export async function GET() {
     const { data: user, error } = await createAdminClient()
       .from("users_akun")
       .select(
-        "username, nama_lengkap, email, no_handphone, jabatan, unit_kerja, departemen, role, akses, akses_pp, status"
+        "username, nama_lengkap, email, no_handphone, jabatan, unit_kerja, departemen, role, akses, akses_pp, status, avatar_url"
       )
       .eq("username", session.username)
       .single();
@@ -72,7 +72,7 @@ export async function GET() {
         akses: user.akses,
         akses_pp: user.akses_pp,
         status: user.status,
-        avatar_url: null,
+        avatar_url: user.avatar_url || null,
       },
     });
   } catch (error) {
