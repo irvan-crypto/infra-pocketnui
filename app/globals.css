@@ -88,6 +88,29 @@ body {
   50% { opacity: 0.6; transform: scale(1.06); }
 }
 
+/* filter-glow — dropdown filter periode (kuning) dengan animasi
+   shimmer seperti tombol Tambah Data (tanpa pulse/scale) */
+.filter-glow {
+  position: relative;
+  overflow: hidden;
+}
+.filter-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.45) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: btnShimmer 4s ease-in-out infinite;
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* filterPulse — tetap tersedia di globals.css, hanya tidak dipakai
+   pada dropdown filter periode (Bulan/Tahun) */
+@keyframes filterPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.22); }
+}
+
 /* fadeIn — dipakai animasi dropdown header */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }

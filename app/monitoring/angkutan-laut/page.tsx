@@ -26,6 +26,17 @@ import {
   sampleDateISO,
   sampleDateTime,
 } from "@/lib/excel-sample";
+import PeriodFilter from "@/components/ui/PeriodFilter";
+import {
+  availableMonths,
+  availableYears,
+  defaultPeriod,
+  filterByPeriod,
+  normalizePeriod,
+  periodLabel,
+  shipmentPeriodDate,
+  type Period,
+} from "@/lib/period";
 
 type Shipment = Record<string, any> & {
   id: string;
@@ -36,6 +47,8 @@ type Shipment = Record<string, any> & {
   tujuan_pp: string;
   pelabuhan_asal: string;
 };
+
+/** Tanggal acuan filter periode untuk baris shipment kapal */
 
 const empty = {
   nama_kapal: "",
@@ -163,6 +176,24 @@ export default function AngkutanLautPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activePp, setActivePp] = useState("Semua");
+
+  // ── Filter periode: acuan td_pelabuhan; bila belum terisi pakai tanggal
+  //    lain yang ada di baris (mis. ta_tiba/sandar), dan baris tanpa tanggal
+  //    apa pun tetap ditampilkan agar tidak hilang dari daftar.
+  const [period, setPeriod] = useState<Period | null>(null);
+  const periodYears = useMemo(() => availableYears(rows, shipmentPeriodDate), [rows]);
+  const activePeriod = useMemo(
+    () => normalizePeriod(rows, shipmentPeriodDate, period ?? defaultPeriod(rows, shipmentPeriodDate)),
+    [rows, period]
+  );
+  const periodMonths = useMemo(
+    () => availableMonths(rows, shipmentPeriodDate, activePeriod.year),
+    [rows, activePeriod.year]
+  );
+  const periodRows = useMemo(
+    () => filterByPeriod(rows, shipmentPeriodDate, activePeriod, { keepUndated: true }),
+    [rows, activePeriod]
+  );
   const [pageByPort, setPageByPort] = useState<Record<string, number>>({});
   const [rowsPerPageByPort, setRowsPerPageByPort] = useState<Record<string, number>>({});
 
@@ -203,7 +234,7 @@ export default function AngkutanLautPage() {
 
   const filtered = useMemo(
     () =>
-      rows.filter((r) => {
+      periodRows.filter((r) => {
         const matchPp = activePp === "Semua" || String(r.tujuan_pp || "").trim() === activePp;
         const matchSearch = Object.values(r)
           .join(" ")
@@ -211,7 +242,7 @@ export default function AngkutanLautPage() {
           .includes(search.toLowerCase());
         return matchPp && matchSearch;
       }),
-    [rows, search, activePp]
+    [periodRows, search, activePp]
   );
 
   /** Tabel dikelompokkan per Pelabuhan Asal (urutan mengikuti PORTS) */
@@ -229,23 +260,17 @@ export default function AngkutanLautPage() {
     });
   }, [filtered]);
 
-  /** MTD & Harian — total muatan dari kolom TD Pelabuhan (selalu total keseluruhan) */
+  /** MTD & Harian — total muatan dari kolom TD Pelabuhan, mengikuti periode terpilih */
   const tdSummary = useMemo(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth();
-
     let mtd = 0;
     let latestDate: Date | null = null;
     const mtdKapal = new Set<string>();
 
-    for (const row of rows) {
+    for (const row of periodRows) {
       const d = toDate(row.td_pelabuhan);
       if (!d) continue;
-      if (d.getFullYear() === y && d.getMonth() === m) {
-        mtd += Number(row.muatan_ton || 0);
-        mtdKapal.add(vesselKey(row));
-      }
+      mtd += Number(row.muatan_ton || 0);
+      mtdKapal.add(vesselKey(row));
       if (!latestDate || d.getTime() > latestDate.getTime()) latestDate = d;
     }
 
@@ -253,7 +278,7 @@ export default function AngkutanLautPage() {
     const harianKapal = new Set<string>();
     if (latestDate) {
       const key = `${latestDate.getFullYear()}-${pad2(latestDate.getMonth() + 1)}-${pad2(latestDate.getDate())}`;
-      for (const row of rows) {
+      for (const row of periodRows) {
         const d = toDate(row.td_pelabuhan);
         if (!d) continue;
         if (`${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` === key) {
@@ -265,7 +290,7 @@ export default function AngkutanLautPage() {
 
     const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
     const harianLabel = latestDate
-      ? `Ringkasan Harian ${latestDate.getDate()} ${bulan[latestDate.getMonth()]}`
+      ? `Ringkasan Harian ${latestDate.getDate()} ${bulan[latestDate.getMonth()]} ${latestDate.getFullYear()}`
       : "Ringkasan Harian";
 
     return {
@@ -273,12 +298,13 @@ export default function AngkutanLautPage() {
       harian,
       mtdKapal: mtdKapal.size,
       harianKapal: harianKapal.size,
+      mtdLabel: `MTD ${periodLabel(activePeriod)}`,
       harianLabel,
       harianLabelShort: harianLabel.replace(/^Ringkasan\s+/i, ""),
     };
-  }, [rows]);
+  }, [periodRows, activePeriod]);
 
-  /** Total muatan & jumlah kapal unik per status terakhir kapal (selalu total keseluruhan) */
+  /** Total muatan & jumlah kapal unik per status terakhir kapal (dalam periode terpilih) */
   const statusTotals = useMemo(() => {
     const bucket = () => ({
       ton: 0,
@@ -295,7 +321,7 @@ export default function AngkutanLautPage() {
       tibaPp: bucket(),
     };
     const BELUM = ["sandar", "muat", "selesai_muat"];
-    for (const row of rows) {
+    for (const row of periodRows) {
       const status = lastStatusOf(row);
       if (!status) continue;
       const ton = Number(row.muatan_ton || 0);
@@ -318,7 +344,7 @@ export default function AngkutanLautPage() {
       }
     }
     return out;
-  }, [rows]);
+  }, [periodRows]);
 
   const openAdd = () => {
     setForm(empty);
@@ -720,15 +746,26 @@ export default function AngkutanLautPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Monitoring Angkutan Laut</h1>
-        <p className="text-sm text-gray-500 mt-1">Monitoring perjalanan kapal dan pengiriman semen.</p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Monitoring Angkutan Laut</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Monitoring perjalanan kapal dan pengiriman semen — {periodLabel(activePeriod)}
+          </p>
+        </div>
+        <PeriodFilter
+          years={periodYears}
+          months={periodMonths}
+          value={activePeriod}
+          onChange={setPeriod}
+          disabled={loading}
+        />
       </div>
 
       {/* Kartu MTD & Harian — total muatan dari kolom TD Pelabuhan (total keseluruhan) */}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
         <TonCard
-          period="Ringkasan MTD"
+          period={tdSummary.mtdLabel}
           periodShort="Ringkasan MTD"
           borderClass="border-l-blue-500"
           ribbon="#3b82f6"

@@ -4,13 +4,20 @@ import { requireUser } from "@/lib/auth/guard";
 
 // ============================================================
 // Ringkasan Angkutan Darat per Expeditur
-// - Harian: baris tanggal terbaru per expeditur
-// - MTH/MTD: agregasi bulan ini (tahun & bulan sekarang)
+// - Query: ?tahun=2026&bulan=11 (opsional)
+//   · tanpa query  → bulan berjalan
+//   · tahun saja   → seluruh tahun itu
+// - Harian: baris terakhir di dalam periode
+// - MTD: agregasi seluruh baris di dalam periode
 // ============================================================
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requireUser();
   if ("error" in auth) return auth.error;
+
+  const { searchParams } = new URL(request.url);
+  const tahunParam = Number(searchParams.get("tahun")) || null;
+  const bulanParam = Number(searchParams.get("bulan")) || null;
 
   try {
     const client = createAdminClient();
@@ -29,9 +36,10 @@ export async function GET() {
       byExpeditur.get(name)!.push(row);
     }
 
+    // Periode acuan: parameter URL, fallback ke bulan berjalan
     const today = new Date();
-    const curMonth = today.getMonth();
-    const curYear = today.getFullYear();
+    const curYear = tahunParam ?? today.getFullYear();
+    const curMonth = bulanParam ?? (tahunParam ? null : today.getMonth() + 1);
 
     const result = [];
     for (const [name, rows] of byExpeditur) {
@@ -39,12 +47,18 @@ export async function GET() {
         (a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
       );
 
-      const latest = rows[0]; // harian (tgl terbaru)
-
+      // Baris di dalam periode
       const mtdRows = rows.filter((r) => {
         const d = new Date(r.tanggal);
-        return d.getMonth() === curMonth && d.getFullYear() === curYear;
+        if (d.getFullYear() !== curYear) return false;
+        if (curMonth !== null && d.getMonth() + 1 !== curMonth) return false;
+        return true;
       });
+
+      // Expeditur tanpa data di periode ini tidak ditampilkan
+      if (mtdRows.length === 0) continue;
+
+      const latest = mtdRows[0]; // harian (tgl terbaru dalam periode)
 
       const totalTonase = mtdRows.reduce(
         (sum, r) => sum + Number(r.tonase || 0),

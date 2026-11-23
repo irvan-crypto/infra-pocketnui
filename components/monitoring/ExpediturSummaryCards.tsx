@@ -5,6 +5,7 @@ import {
   formatMonitoringNumber,
   formatTanggalPanjang,
 } from "@/lib/monitoring-config";
+import type { PeriodPart } from "@/lib/period";
 
 // ============================================================
 // Grid kartu ringkasan per expeditur (MTD & Harian).
@@ -75,13 +76,26 @@ function ExpediturCard({ e }: { e: ExpediturSummary }) {
   );
 }
 
-export default function ExpediturSummaryCards() {
+export default function ExpediturSummaryCards({
+  year = "all",
+  month = "all",
+}: {
+  year?: PeriodPart;
+  month?: PeriodPart;
+}) {
   const [rows, setRows] = useState<ExpediturSummary[] | null>(null);
 
   useEffect(() => {
+    setRows(null);
     (async () => {
       try {
-        const res = await fetch("/api/angkutan-darat-summary");
+        const params = new URLSearchParams();
+        if (year !== "all") params.set("tahun", String(year));
+        if (month !== "all") params.set("bulan", String(month));
+        const query = params.toString();
+        const res = await fetch(
+          `/api/angkutan-darat-summary${query ? `?${query}` : ""}`
+        );
         const data = await res.json();
         setRows(data.ok ? data.data || [] : []);
       } catch (error) {
@@ -89,7 +103,7 @@ export default function ExpediturSummaryCards() {
         setRows([]);
       }
     })();
-  }, []);
+  }, [year, month]);
 
   if (rows === null) return null; // masih memuat — biarkan senyap
 

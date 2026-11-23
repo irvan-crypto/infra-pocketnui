@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Warehouse, Factory, Truck, Package } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
+import PeriodFilter from "@/components/ui/PeriodFilter";
 import { useAuth } from "@/contexts/AuthContext";
 import { canAccessPath } from "@/lib/access";
 import ExpediturSummaryCards, {
@@ -16,6 +17,16 @@ import {
   monitoringFieldValue,
   type MonitoringTableConfig,
 } from "@/lib/monitoring-config";
+import {
+  availableMonths,
+  availableYears,
+  defaultPeriod,
+  normalizePeriod,
+  periodAnchorRows,
+  periodLabel,
+  periodQuery,
+  type Period,
+} from "@/lib/period";
 
 type Row = Record<string, any>;
 
@@ -71,10 +82,39 @@ export default function MonitoringSummary() {
   const [latest, setLatest] = useState<Record<string, Row | null>>({});
   const [loading, setLoading] = useState(true);
 
+  // ── Filter periode: opsi dari periode yang ada di data ──
+  const [periodList, setPeriodList] = useState<string[]>([]);
+  const [period, setPeriod] = useState<Period | null>(null);
+  const anchorRows = useMemo(() => periodAnchorRows(periodList), [periodList]);
+  const periodYears = useMemo(() => availableYears(anchorRows, (r) => r.tanggal), [anchorRows]);
+  const activePeriod = useMemo(
+    () => normalizePeriod(anchorRows, (r) => r.tanggal, period ?? defaultPeriod(anchorRows, (r) => r.tanggal)),
+    [anchorRows, period]
+  );
+  const periodMonths = useMemo(
+    () => availableMonths(anchorRows, (r) => r.tanggal, activePeriod.year),
+    [anchorRows, activePeriod.year]
+  );
+
+  // Daftar periode (tahun-bulan) yang ada di data
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/monitoring-summary");
+        const res = await fetch("/api/monitoring-periods");
+        const data = await res.json();
+        if (data.ok) setPeriodList(data.periods || []);
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+  }, []);
+
+  // Ringkasan mengikuti periode terpilih
+  const summaryQuery = periodList.length > 0 ? periodQuery(activePeriod) : "";
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/monitoring-summary${summaryQuery}`);
         const data = await res.json();
         if (data.ok) setLatest(data.latest || {});
       } catch (error) {
@@ -83,7 +123,7 @@ export default function MonitoringSummary() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [summaryQuery]);
 
   const silo = latest["silo_semen"];
   const totalSilo = useMemo(() => {
@@ -211,9 +251,20 @@ export default function MonitoringSummary() {
 
   return (
     <div className="max-w-full mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Ringkasan Monitoring</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Data terbaru dari seluruh tabel monitoring harian</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Ringkasan Monitoring</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Data terbaru seluruh tabel monitoring harian — {periodLabel(activePeriod)}
+          </p>
+        </div>
+        <PeriodFilter
+          years={periodYears}
+          months={periodMonths}
+          value={activePeriod}
+          onChange={setPeriod}
+          disabled={loading}
+        />
       </div>
 
       {/* Stok utama */}
@@ -343,7 +394,7 @@ export default function MonitoringSummary() {
         )}
       </div>
       <div className="mb-6">
-        <ExpediturSummaryCards />
+        <ExpediturSummaryCards year={activePeriod.year} month={activePeriod.month} />
       </div>
 
       {/* PP cabang */}

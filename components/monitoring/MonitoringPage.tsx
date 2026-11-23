@@ -5,6 +5,7 @@ import { Plus, Trash2, Edit2, X, AlertCircle, Download, Upload } from "lucide-re
 import { useAuth } from "@/contexts/AuthContext";
 import { getPermissions, canEditMonitoringPage } from "@/lib/access";
 import DataTable from "@/components/ui/DataTable";
+import PeriodFilter from "@/components/ui/PeriodFilter";
 import SiloTankChart from "@/components/monitoring/SiloTankChart";
 import ExpediturSummaryCards from "@/components/monitoring/ExpediturSummaryCards";
 import GroupedSummaryCards from "@/components/monitoring/GroupedSummaryCards";
@@ -23,12 +24,25 @@ import {
   todayISO,
   type ParsedRow,
 } from "@/lib/monitoring-excel";
+import {
+  availableMonths,
+  availableYears,
+  defaultPeriod,
+  filterByPeriod,
+  lastRowInPeriod,
+  normalizePeriod,
+  periodLabel,
+  type Period,
+} from "@/lib/period";
 
 type Row = Record<string, any>;
 type FormData = Record<string, string>;
 
 const WRITE_ROLES = ["admin", "asisten_admin", "supervisor", "operator"];
 const BULAN_SINGKAT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+/** Tanggal acuan filter periode untuk tabel monitoring harian */
+const rowTanggal = (row: Row) => row.tanggal;
 
 export default function MonitoringPage({ config }: { config: MonitoringTableConfig }) {
   const { user } = useAuth();
@@ -39,6 +53,8 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Pilihan filter periode; null = belum ditentukan (menunggu data) */
+  const [period, setPeriod] = useState<Period | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -54,13 +70,34 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
   const [uploadResult, setUploadResult] = useState<{ rows: ParsedRow[]; errors: string[]; samplesSkipped?: number } | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState("");
 
-  /** Data grafik garis (tren harian) — dihitung dari config.lineCharts */
+  // ── Filter periode (Tahun + Bulan) ──
+  // Opsi dibentuk dari data yang benar-benar ada; default = bulan berjalan.
+  const periodYears = useMemo(() => availableYears(rows, rowTanggal), [rows]);
+  const activePeriod = useMemo(
+    () => normalizePeriod(rows, rowTanggal, period ?? defaultPeriod(rows, rowTanggal)),
+    [rows, period]
+  );
+  const periodMonths = useMemo(
+    () => availableMonths(rows, rowTanggal, activePeriod.year),
+    [rows, activePeriod.year]
+  );
+  const periodRows = useMemo(
+    () => filterByPeriod(rows, rowTanggal, activePeriod),
+    [rows, activePeriod]
+  );
+  /** Baris terakhir dalam periode = kondisi akhir bulan (grafik tabung silo) */
+  const periodLatestRow = useMemo(
+    () => lastRowInPeriod(rows, rowTanggal, activePeriod),
+    [rows, activePeriod]
+  );
+
+  /** Data grafik garis (tren harian) — dihitung dari config.lineCharts, mengikuti periode */
   const lineChartData = useMemo(() => {
     const charts = config.lineCharts ?? [];
     if (charts.length === 0) return [];
 
     const fieldByKey = new Map(config.fields.map((f) => [f.key, f]));
-    const asc = [...rows]
+    const asc = [...periodRows]
       .filter((r) => r.tanggal)
       .sort((a, b) => String(a.tanggal).localeCompare(String(b.tanggal)));
     const labels = asc.map((r) => {
@@ -82,7 +119,7 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
         ),
       })),
     }));
-  }, [config, rows]);
+  }, [config, periodRows]);
 
   /** Grafik yang seluruh nilainya 0 disembunyikan (tanpa menyisakan ruang kosong) */
   const visibleLineCharts = useMemo(() => {
@@ -108,12 +145,26 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
     return Object.entries(groups);
   }, [editableFields]);
 
+  /** Tanggal default form: ikut periode terpilih agar data tidak salah bulan */
+  const defaultFormTanggal = (): string => {
+    if (activePeriod.year === "all" || activePeriod.month === "all") return todayISO();
+    const last = lastRowInPeriod(rows, rowTanggal, activePeriod);
+    return (
+      (last?.tanggal ? String(last.tanggal).slice(0, 10) : null) ??
+      `${activePeriod.year}-${String(activePeriod.month).padStart(2, "0")}-01`
+    );
+  };
+
   const emptyForm = (): FormData => {
-    const base: FormData = { tanggal: todayISO() };
+    const base: FormData = { tanggal: defaultFormTanggal() };
     for (const f of editableFields) base[f.key] = "";
     return base;
   };
-  const [formData, setFormData] = useState<FormData>(emptyForm());
+  const [formData, setFormData] = useState<FormData>(() => {
+    const base: FormData = { tanggal: todayISO() };
+    for (const f of editableFields) base[f.key] = "";
+    return base;
+  });
 
   useEffect(() => {
     fetchRows();
@@ -447,6 +498,13 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
             </p>
           )}
         </div>
+        <PeriodFilter
+          years={periodYears}
+          months={periodMonths}
+          value={activePeriod}
+          onChange={setPeriod}
+          disabled={loading}
+        />
       </div>
 
       {/* Form modal (tambah/edit) */}
@@ -536,9 +594,9 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
       )}
 
       {/* Grafik tabung silo (khusus silo_semen): baris tanggal terbaru */}
-      {config.chart && rows.length > 0 && (
+      {config.chart && periodLatestRow && (
         <SiloTankChart
-          latest={rows[0]}
+          latest={periodLatestRow}
           groups={config.chart.groups}
           groupNames={config.chart.groupNames}
           columnPrefix={config.chart.columnPrefix}
@@ -554,13 +612,13 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
               Ringkasan Expeditur — MTD & Harian
             </h2>
           </div>
-          <ExpediturSummaryCards />
+          <ExpediturSummaryCards year={activePeriod.year} month={activePeriod.month} />
         </div>
       )}
 
       {/* Ringkasan grid card dari data tabel (mis. CP Tonasa: OPC & PCC) */}
-      {config.groupedSummary && rows.length > 0 && (
-        <GroupedSummaryCards config={config} rows={rows} />
+      {config.groupedSummary && periodRows.length > 0 && (
+        <GroupedSummaryCards config={config} rows={periodRows} />
       )}
 
       {/* Grafik garis tren harian (mis. PP: OPC, PCC, Rilis OPC, Rilis PCC) */}
@@ -584,9 +642,16 @@ export default function MonitoringPage({ config }: { config: MonitoringTableConf
 
       {/* Tabel data */}
       <DataTable
-        title={`Data ${config.title}`}
+        title={
+          <span className="flex flex-wrap items-center gap-2">
+            Data {config.title}
+            <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
+              {periodLabel(activePeriod)}
+            </span>
+          </span>
+        }
         columns={columns as any}
-        data={rows}
+        data={periodRows}
         searchable
         searchPlaceholder="Cari tanggal / data..."
         actions={

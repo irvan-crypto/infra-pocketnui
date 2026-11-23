@@ -5,10 +5,17 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { PORTS, PLANTS } from "@/lib/coordinates";
 import DataTable from "@/components/ui/DataTable";
+import PeriodFilter from "@/components/ui/PeriodFilter";
 import { Download, Edit3, Factory, FileText, Plus, Trash2, X, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 import { getPermissions, canEditRkapRow } from "@/lib/access";
 import { SAMPLE_COLUMN, SAMPLE_VALUE, isSampleRow, sampleDateISO } from "@/lib/excel-sample";
+import {
+  availableMonths,
+  availableYears,
+  normalizePeriod,
+  type Period,
+} from "@/lib/period";
 
 interface RkapShipmentRow {
   id: string;
@@ -93,7 +100,8 @@ export default function RkapShipmentLautPage() {
 
   const [selectedPackingPlant, setSelectedPackingPlant] = useState<string | null>(null);
   const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  /** Filter periode RKAP — default SEMUA BULAN (target & realisasi tahunan) */
+  const [period, setPeriod] = useState<Period | null>(null);
   const [tableSearch, setTableSearch] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<RkapFormData>({
     pelabuhan_asal: "",
@@ -254,25 +262,48 @@ export default function RkapShipmentLautPage() {
     return (realization / target) * 100;
   };
 
-  // Tahun yang ada di data
-  const availableYears = useMemo(() => {
-    const years = new Set(rows.map((r) => r.tahun));
-    return Array.from(years).sort((a, b) => b - a);
-  }, [rows]);
+  // Tahun & bulan yang ada di data (baris semu agar bisa pakai helper periode)
+  const periodAnchorRows = useMemo(
+    () =>
+      rows.map((r) => ({
+        tanggal: `${r.tahun}-${String(r.bulan ?? 1).padStart(2, "0")}-01`,
+      })),
+    [rows]
+  );
+  const periodYears = useMemo(
+    () => availableYears(periodAnchorRows, (r) => r.tanggal),
+    [periodAnchorRows]
+  );
+  const activePeriod = useMemo(
+    () =>
+      normalizePeriod(periodAnchorRows, (r) => r.tanggal, period ?? {
+        year: currentYear,
+        month: "all",
+      }),
+    [periodAnchorRows, period, currentYear]
+  );
+  const periodMonths = useMemo(
+    () => availableMonths(periodAnchorRows, (r) => r.tanggal, activePeriod.year),
+    [periodAnchorRows, activePeriod.year]
+  );
 
   // Normalisasi nama plant agar pencocokan toleran terhadap spasi/kapital
   const normalizePlantName = (name: string | null | undefined) =>
     (name || "").trim().replace(/\s+/g, " ").toLowerCase();
 
-  // Filter by selected packing plant dan tahun (toleran terhadap beda spasi/kapital)
+  // Filter by packing plant, tahun, dan bulan (toleran beda spasi/kapital)
   const filteredRows = useMemo(() => {
-    let result = rows.filter((r) => r.tahun === selectedYear);
+    let result = rows.filter((r) => {
+      if (activePeriod.year !== "all" && r.tahun !== activePeriod.year) return false;
+      if (activePeriod.month !== "all" && Number(r.bulan) !== activePeriod.month) return false;
+      return true;
+    });
     if (selectedPackingPlant) {
       const selected = normalizePlantName(selectedPackingPlant);
       result = result.filter((r) => normalizePlantName(r.packing_plant) === selected);
     }
     return result;
-  }, [rows, selectedPackingPlant, selectedYear]);
+  }, [rows, selectedPackingPlant, activePeriod]);
 
   // Plants that have data (RKAP rows or realizations)
   const plantsWithData = useMemo(() => {
@@ -550,31 +581,26 @@ export default function RkapShipmentLautPage() {
           <h1 className="text-2xl font-bold text-gray-900">RKAP Shipment Laut</h1>
           <p className="text-sm text-gray-500 mt-1">Target & realisasi shipment laut per packing plant</p>
         </div>
-        {canEdit && (
-          <div className="flex flex-col sm:flex-row gap-2">
-            {/* Filter Tahun */}
-            <div className="flex items-center gap-2">
-              <label htmlFor="year-filter" className="sr-only">Tahun</label>
-              <select
-                id="year-filter"
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="h-10 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
-              >
-                {availableYears.map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-                {availableYears.length === 0 && <option value={currentYear}>{currentYear}</option>}
-              </select>
-            </div>
-            <button onClick={() => setShowUploadModal(true)} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors whitespace-nowrap">
-              <Download size={16} /> Upload File
-            </button>
-            <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-glow flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors whitespace-nowrap">
-              <Plus size={16} /> Tambah Data
-            </button>
-          </div>
-        )}
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          {/* Filter Bulan & Tahun (opsi dari data yang ada) */}
+          <PeriodFilter
+            years={periodYears.length > 0 ? periodYears : [currentYear]}
+            months={periodMonths}
+            value={activePeriod}
+            onChange={setPeriod}
+            disabled={loading}
+          />
+          {canEdit && (
+            <>
+              <button onClick={() => setShowUploadModal(true)} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors whitespace-nowrap">
+                <Download size={16} /> Upload File
+              </button>
+              <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-glow flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors whitespace-nowrap">
+                <Plus size={16} /> Tambah Data
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Stat Cards ── */}

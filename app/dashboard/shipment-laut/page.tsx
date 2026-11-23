@@ -3,9 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import ShipmentMap from "@/components/dashboard/ShipmentMap";
 import DataTable from "@/components/ui/DataTable";
+import PeriodFilter from "@/components/ui/PeriodFilter";
 import { Maximize2, Minimize2, Ship, Anchor, Navigation, Factory } from "lucide-react";
 import { SHIP_STATUS_ORDER, SHIP_STATUS_LABELS, type ShipStatusKey } from "@/lib/app-config";
 import { formatDateIndonesian } from "@/lib/utils";
+import {
+  availableMonths,
+  availableYears,
+  defaultPeriod,
+  filterByPeriod,
+  normalizePeriod,
+  periodLabel,
+  shipmentPeriodDate,
+  type Period,
+} from "@/lib/period";
 
 interface Shipment {
   id: string;
@@ -64,6 +75,27 @@ export default function ShipmentLautPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  /** Filter periode: acuan td_pelabuhan (fallback tanggal lain di baris) */
+  const [period, setPeriod] = useState<Period | null>(null);
+
+  const periodYears = useMemo(() => availableYears(shipments, shipmentPeriodDate), [shipments]);
+  const activePeriod = useMemo(
+    () =>
+      normalizePeriod(
+        shipments,
+        shipmentPeriodDate,
+        period ?? defaultPeriod(shipments, shipmentPeriodDate)
+      ),
+    [shipments, period]
+  );
+  const periodMonths = useMemo(
+    () => availableMonths(shipments, shipmentPeriodDate, activePeriod.year),
+    [shipments, activePeriod.year]
+  );
+  const periodShipments = useMemo(
+    () => filterByPeriod(shipments, shipmentPeriodDate, activePeriod, { keepUndated: true }),
+    [shipments, activePeriod]
+  );
 
   useEffect(() => {
     fetchShipments();
@@ -163,7 +195,7 @@ export default function ShipmentLautPage() {
   // Kapal sama dengan muatan berbeda tetap tampil sebagai baris terpisah.
   const tableShipments = useMemo(() => {
     const map = new Map<string, Shipment>();
-    for (const s of shipments) {
+    for (const s of periodShipments) {
       const key = `${s.nama_kapal}\u0000${s.type_muatan}`;
       const existing = map.get(key);
       if (!existing || getLatestStatusTimestamp(s) > getLatestStatusTimestamp(existing)) {
@@ -171,20 +203,20 @@ export default function ShipmentLautPage() {
       }
     }
     return Array.from(map.values());
-  }, [shipments]);
+  }, [periodShipments]);
 
   // Peta: merge jadi 1 icon per nama_kapal (walau type_muatan berbeda),
   // ambil record dengan timestamp status terakhir paling baru.
   const mapShipments = useMemo(() => {
     const map = new Map<string, Shipment>();
-    for (const s of shipments) {
+    for (const s of periodShipments) {
       const existing = map.get(s.nama_kapal);
       if (!existing || getLatestStatusTimestamp(s) > getLatestStatusTimestamp(existing)) {
         map.set(s.nama_kapal, s);
       }
     }
     return Array.from(map.values());
-  }, [shipments]);
+  }, [periodShipments]);
 
   // Kartu ringkasan: total muatan & jumlah kapal unik per status terakhir.
   // Status terakhir = kolom status terakhir yang terisi (urutan SHIP_STATUS_ORDER).
@@ -205,7 +237,7 @@ export default function ShipmentLautPage() {
     };
     const BELUM = ["sandar", "muat", "selesai_muat"];
 
-    for (const row of shipments) {
+    for (const row of periodShipments) {
       let status: string | null = null;
       for (let i = SHIP_STATUS_ORDER.length - 1; i >= 0; i--) {
         const key = SHIP_STATUS_ORDER[i];
@@ -237,7 +269,7 @@ export default function ShipmentLautPage() {
       }
     }
     return out;
-  }, [shipments]);
+  }, [periodShipments]);
 
   type StatusCardItem = [string, number, number, number, number, number, number, React.ReactNode];
 
@@ -348,6 +380,22 @@ export default function ShipmentLautPage() {
 
   return (
     <div className="w-full flex flex-col gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Peta Monitoring Kapal</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Posisi & status kapal — {periodLabel(activePeriod)}
+          </p>
+        </div>
+        <PeriodFilter
+          years={periodYears}
+          months={periodMonths}
+          value={activePeriod}
+          onChange={setPeriod}
+          disabled={loading}
+        />
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statusCards.map(([label, value, kapal, bks, bksKapal, tuban, tubanKapal, icon]) => (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4" key={label}>
@@ -380,7 +428,7 @@ export default function ShipmentLautPage() {
 
       <div className="w-full flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Peta Monitoring Kapal</h1>
+          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Peta Sebaran Kapal</h2>
           {isFullScreen && (
             <button
               type="button"
@@ -408,7 +456,14 @@ export default function ShipmentLautPage() {
       </div>
 
       <DataTable
-        title="Ship Monitor"
+        title={
+          <span className="flex flex-wrap items-center gap-2">
+            Ship Monitor
+            <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
+              {periodLabel(activePeriod)}
+            </span>
+          </span>
+        }
         columns={columns}
         data={tableShipments}
         searchable

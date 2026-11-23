@@ -16,20 +16,39 @@ import {
   Package,
 } from "lucide-react";
 import DataTable from "@/components/ui/DataTable";
+import PeriodFilter from "@/components/ui/PeriodFilter";
 import SemuaSiloTankCard from "@/components/monitoring/SemuaSiloTankCard";
 import { SAMPLE_COLUMN, SAMPLE_VALUE, isSampleRow } from "@/lib/excel-sample";
 import {
+  PP_UNITS,
   SEMUA_SILO_GROUPS,
   groupKeyOf,
   groupLabelOf,
   siloNumberOf,
   type SemuaSiloGroupKey,
 } from "@/lib/semua-silo";
+import {
+  availableMonths,
+  availableYears,
+  defaultPeriod,
+  normalizePeriod,
+  periodAnchorRows,
+  periodLabel,
+  periodQuery,
+  type Period,
+} from "@/lib/period";
 
 // ============================================================
 // /monitoring/semua-silo — kapasitas & deadstok semua silo/PP
 // Sumber data: tabel packing_plant. Hanya role admin.
 // ============================================================
+
+/** Tabel sumber stok: dipakai untuk mengisi opsi filter periode */
+const PERIODE_TABLES = [
+  "silo_semen",
+  "silo_pantai",
+  ...PP_UNITS.map((u) => u.table),
+].join(",");
 
 interface PackRow {
   id: number | string;
@@ -71,6 +90,32 @@ export default function SemuaSiloPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
+  // ── Filter periode: opsi dari periode yang ada di data silo ──
+  const [periodList, setPeriodList] = useState<string[]>([]);
+  const [period, setPeriod] = useState<Period | null>(null);
+  const anchorRows = useMemo(() => periodAnchorRows(periodList), [periodList]);
+  const periodYears = useMemo(() => availableYears(anchorRows, (r) => r.tanggal), [anchorRows]);
+  const activePeriod = useMemo(
+    () => normalizePeriod(anchorRows, (r) => r.tanggal, period ?? defaultPeriod(anchorRows, (r) => r.tanggal)),
+    [anchorRows, period]
+  );
+  const periodMonths = useMemo(
+    () => availableMonths(anchorRows, (r) => r.tanggal, activePeriod.year),
+    [anchorRows, activePeriod.year]
+  );
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/monitoring-periods?tables=" + PERIODE_TABLES);
+        const json = await res.json();
+        if (json.ok) setPeriodList(json.periods || []);
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+  }, []);
+
   // Modal
   const [showChoice, setShowChoice] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -94,9 +139,11 @@ export default function SemuaSiloPage() {
   const [samplesSkipped, setSamplesSkipped] = useState(0);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  const stokQuery = periodList.length > 0 ? periodQuery(activePeriod) : "";
+
   const fetchRows = useCallback(async () => {
     try {
-      const res = await fetch("/api/semua-silo", { cache: "no-store" });
+      const res = await fetch(`/api/semua-silo${stokQuery}`, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok || json.ok === false) throw new Error(json.message || "Gagal memuat data");
       setRows(json.rows || []);
@@ -108,7 +155,7 @@ export default function SemuaSiloPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [stokQuery]);
 
   useEffect(() => {
     fetchRows();
@@ -550,13 +597,22 @@ export default function SemuaSiloPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-5">
-      <div>
-        <h1 className="text-lg md:text-xl font-bold text-gray-800 tracking-tight">
-          SEMUA SILO
-        </h1>
-        <p className="text-xs md:text-sm text-gray-500 mt-1">
-          Kapasitas & deadstok seluruh silo dan packing plant (ton)
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-lg md:text-xl font-bold text-gray-800 tracking-tight">
+            SEMUA SILO
+          </h1>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">
+            Kapasitas & deadstok seluruh silo dan packing plant (ton) — {periodLabel(activePeriod)}
+          </p>
+        </div>
+        <PeriodFilter
+          years={periodYears}
+          months={periodMonths}
+          value={activePeriod}
+          onChange={setPeriod}
+          disabled={loading}
+        />
       </div>
 
       {loadError && (
