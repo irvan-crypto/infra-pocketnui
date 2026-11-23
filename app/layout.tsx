@@ -13,7 +13,13 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+// URL publik untuk og:url & og:image (harus absolut).
+// Prioritas: NEXT_PUBLIC_SITE_URL → domain produksi Vercel → localhost.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
 // Meta description halaman (SEO)
 const SITE_DESCRIPTION = "Sistem Informasi Monitoring Infrastruktur";
 // Deskripsi pada kartu preview saat link dibagikan
