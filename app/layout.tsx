@@ -13,9 +13,40 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+// Meta description halaman (SEO)
+const SITE_DESCRIPTION = "Sistem Informasi Monitoring Infrastruktur";
+// Deskripsi pada kartu preview saat link dibagikan
+const OG_DESCRIPTION =
+  "Monitoring aktifitas rilis semen dari pabrik (silo) ke packing plant";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "SIMIRA",
-  description: "Sistem Monitoring Pengiriman Semen dari Pelabuhan ke Packing Plant",
+  description: SITE_DESCRIPTION,
+  // Preview saat link dibagikan (WhatsApp, Telegram, Facebook, LinkedIn, X)
+  openGraph: {
+    type: "website",
+    siteName: "SIMIRA",
+    locale: "id_ID",
+    url: "/",
+    title: "SIMIRA — Sistem Monitoring Pengiriman Semen",
+    description: OG_DESCRIPTION,
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "SIMIRA — Sistem Informasi Monitoring Infrastruktur",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SIMIRA — Sistem Monitoring Pengiriman Semen",
+    description: OG_DESCRIPTION,
+    images: ["/og-image.png"],
+  },
   manifest: "/manifest.json",
   icons: {
     icon: [
