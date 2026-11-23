@@ -25,6 +25,8 @@ const SITE_DESCRIPTION = "Sistem Informasi Monitoring Infrastruktur";
 // Deskripsi pada kartu preview saat link dibagikan
 const OG_DESCRIPTION =
   "Monitoring aktifitas rilis semen dari pabrik (silo) ke packing plant";
+// Judul pada kartu preview saat link dibagikan
+const OG_TITLE = "Sistem Informasi Monitoring Infrastruktur";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -36,7 +38,7 @@ export const metadata: Metadata = {
     siteName: "SIMIRA",
     locale: "id_ID",
     url: "/",
-    title: "SIMIRA — Sistem Monitoring Pengiriman Semen",
+    title: OG_TITLE,
     description: OG_DESCRIPTION,
     images: [
       {
@@ -49,7 +51,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SIMIRA — Sistem Monitoring Pengiriman Semen",
+    title: OG_TITLE,
     description: OG_DESCRIPTION,
     images: ["/og-image.png"],
   },
